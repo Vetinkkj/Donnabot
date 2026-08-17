@@ -12,7 +12,10 @@ import type { NextRequest } from "next/server";
  */
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  // Em produção (HTTPS) o Auth.js usa o cookie "__Secure-authjs.session-token"
+  // — sem isso, getToken procura o nome errado e nunca acha a sessão.
+  const secureCookie = req.nextUrl.protocol === "https:";
+  const token = await getToken({ req, secret: process.env.AUTH_SECRET, secureCookie });
 
   if (pathname === "/login") {
     if (token) return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
