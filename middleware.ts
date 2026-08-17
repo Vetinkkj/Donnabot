@@ -1,20 +1,25 @@
+import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import type { NextRequest } from "next/server";
 
 /**
- * Protege o painel admin e as APIs administrativas. No Next.js 16 este
- * arquivo roda no runtime Node.js (antes era "middleware.ts" e rodava no
- * Edge) — por isso dá pra usar `auth()` com sessão JWT normalmente aqui.
+ * Protege o painel admin e as APIs administrativas.
+ *
+ * Usa `getToken` (next-auth/jwt) em vez de instanciar `NextAuth()` aqui —
+ * é a forma leve e Edge-compatible de só ler/validar o cookie de sessão,
+ * sem precisar da configuração completa (providers, callbacks etc.), que
+ * só é necessária no fluxo de login de verdade (em auth.ts).
  */
-export const proxy = auth((req) => {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
 
   if (pathname === "/login") {
-    if (req.auth) return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
+    if (token) return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
     return NextResponse.next();
   }
 
-  if (!req.auth) {
+  if (!token) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
@@ -24,7 +29,7 @@ export const proxy = auth((req) => {
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: [
