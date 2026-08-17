@@ -1,0 +1,289 @@
+// Schema do banco de dados do BOTloja
+// Documentação: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// LOJA (preparado para múltiplas lojas no futuro)
+// ---------------------------------------------------------------------------
+
+model Store {
+  id                     String   @id @default(cuid())
+  name                   String
+  phone                  String?
+  address                String?
+  logoUrl                String?
+  botName                String   @default("Dona")
+  welcomeMessage         String   @default("Olá! 👋 Como posso ajudar?")
+  paymentMessage         String   @default("Pagamento via PIX")
+  orderApprovedMessage   String   @default("✅ Pagamento confirmado! Obrigado pela compra.")
+  defaultMinStock        Int      @default(2)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  users         User[]
+  customers     Customer[]
+  categories    Category[]
+  products      Product[]
+  orders        Order[]
+  conversations Conversation[]
+
+  @@map("stores")
+}
+
+// ---------------------------------------------------------------------------
+// USUÁRIOS ADMINISTRATIVOS (dono da loja / atendentes)
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  OWNER
+  AGENT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  storeId      String
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(OWNER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  store               Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  assignedConversations Conversation[]
+
+  @@index([storeId])
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// CLIENTES
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id            String   @id @default(cuid())
+  storeId       String
+  whatsappPhone String
+  name          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders        Order[]
+  conversations Conversation[]
+
+  @@unique([storeId, whatsappPhone])
+  @@index([storeId])
+  @@map("customers")
+}
+
+// ---------------------------------------------------------------------------
+// CATÁLOGO
+// ---------------------------------------------------------------------------
+
+model Category {
+  id      String @id @default(cuid())
+  storeId String
+  name    String
+
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([storeId, name])
+  @@index([storeId])
+  @@map("categories")
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  storeId        String
+  categoryId     String?
+  name           String
+  brand          String?
+  model          String?
+  compatibility  String?
+  description    String?
+  price          Decimal  @db.Decimal(10, 2)
+  stockQuantity  Int      @default(0)
+  minStock       Int      @default(2)
+  sku            String
+  imageUrl       String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  store          Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category       Category?       @relation(fields: [categoryId], references: [id])
+  orderItems     OrderItem[]
+  stockMovements StockMovement[]
+
+  @@unique([storeId, sku])
+  @@index([storeId])
+  @@index([storeId, active])
+  @@map("products")
+}
+
+// ---------------------------------------------------------------------------
+// PEDIDOS
+// ---------------------------------------------------------------------------
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  storeId    String
+  customerId String
+  status     OrderStatus @default(PENDING)
+  total      Decimal     @db.Decimal(10, 2)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  store    Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items    OrderItem[]
+  payment  Payment?
+  stockMovements StockMovement[]
+
+  @@index([storeId])
+  @@index([storeId, status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+// ---------------------------------------------------------------------------
+// PAGAMENTOS
+// ---------------------------------------------------------------------------
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  orderId         String        @unique
+  provider        String // "mock" | "mercadopago" | "efi" | "asaas" | "pagbank"
+  externalId      String? // ID da cobrança no gateway
+  qrCode          String? // imagem/base64 do QR Code PIX
+  copyPasteCode   String? // código "PIX copia e cola"
+  amount          Decimal       @db.Decimal(10, 2)
+  status          PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// ESTOQUE
+// ---------------------------------------------------------------------------
+
+enum StockMovementType {
+  IN
+  OUT
+}
+
+model StockMovement {
+  id        String            @id @default(cuid())
+  productId String
+  orderId   String?
+  type      StockMovementType
+  quantity  Int
+  reason    String
+  createdAt DateTime          @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order   Order?  @relation(fields: [orderId], references: [id])
+
+  @@index([productId])
+  @@map("stock_movements")
+}
+
+// ---------------------------------------------------------------------------
+// CONVERSAS / ATENDIMENTO (bot + humano)
+// ---------------------------------------------------------------------------
+
+enum ConversationStatus {
+  BOT
+  WAITING_HUMAN
+  HUMAN
+}
+
+model Conversation {
+  id             String             @id @default(cuid())
+  storeId        String
+  customerId     String
+  status         ConversationStatus @default(BOT)
+  assignedUserId String?
+  // rascunho do carrinho e estado da máquina de conversa (JSON livre)
+  context        Json               @default("{}")
+  lastMessageAt  DateTime           @default(now())
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  store        Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer     Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  assignedUser User?     @relation(fields: [assignedUserId], references: [id])
+  messages     Message[]
+
+  @@index([storeId])
+  @@index([storeId, status])
+  @@map("conversations")
+}
+
+enum MessageDirection {
+  IN
+  OUT
+}
+
+enum MessageType {
+  TEXT
+  BUTTONS
+  IMAGE
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  conversationId String
+  direction      MessageDirection
+  content        String
+  messageType    MessageType      @default(TEXT)
+  createdAt      DateTime         @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("messages")
+}
