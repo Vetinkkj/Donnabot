@@ -1,7 +1,43 @@
+import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import type { StoreSettingsInput } from "@/lib/validations/store";
 import type { ResolvedWhatsAppConfig } from "@/services/whatsapp";
+
+// ---------------------------------------------------------------------------
+// CADASTRO DE NOVA LOJA (multi-tenant) — dono escolhe o próprio e-mail/senha
+// ---------------------------------------------------------------------------
+
+export type CreateStoreWithOwnerInput = {
+  storeName: string;
+  ownerName: string;
+  email: string;
+  password: string;
+};
+
+/** Cria uma loja nova e o usuário dono dela (role OWNER) em uma única transação. */
+export async function createStoreWithOwner(input: CreateStoreWithOwnerInput) {
+  const existing = await db.user.findUnique({ where: { email: input.email } });
+  if (existing) {
+    throw new Error("Já existe uma conta com esse e-mail");
+  }
+
+  const passwordHash = await bcrypt.hash(input.password, 10);
+
+  return db.$transaction(async (tx) => {
+    const store = await tx.store.create({ data: { name: input.storeName } });
+    const user = await tx.user.create({
+      data: {
+        storeId: store.id,
+        name: input.ownerName,
+        email: input.email,
+        passwordHash,
+        role: "OWNER",
+      },
+    });
+    return { store, user };
+  });
+}
 
 export async function getStoreSettings(storeId: string) {
   return db.store.findUniqueOrThrow({ where: { id: storeId } });

@@ -53,6 +53,13 @@ export default async function LoginPage({
         <Input label="Senha" name="password" type="password" required autoComplete="current-password" />
 
         <Button type="submit">Entrar</Button>
+
+        <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+          Ainda não tem loja cadastrada?{" "}
+          <a href="/signup" className="underline">
+            Criar loja
+          </a>
+        </p>
       </form>
     </div>
   );

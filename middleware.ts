@@ -17,7 +17,7 @@ export async function middleware(req: NextRequest) {
   const secureCookie = req.nextUrl.protocol === "https:";
   const token = await getToken({ req, secret: process.env.AUTH_SECRET, secureCookie });
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname === "/signup") {
     if (token) return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
     return NextResponse.next();
   }
@@ -37,6 +37,7 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     "/login",
+    "/signup",
     "/dashboard/:path*",
     "/products/:path*",
     "/orders/:path*",
