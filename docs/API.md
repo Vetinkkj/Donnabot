@@ -165,6 +165,34 @@ estiverem configuradas. Valida a assinatura via `WHATSAPP_APP_SECRET`
 
 ---
 
+## WhatsApp — webhook real (Twilio, alternativa à Meta)
+
+| Método | Rota | Descrição |
+|---|---|---|
+| POST | `/api/webhooks/twilio-whatsapp` | Recebe mensagens do Twilio WhatsApp Sandbox |
+
+Alternativa a `WHATSAPP_PROVIDER="meta"` para quando o cadastro direto na
+Meta não é possível (ex: sem CNPJ para verificação de empresa). Configure
+com `WHATSAPP_PROVIDER="twilio"` + `TWILIO_ACCOUNT_SID`,
+`TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_NUMBER`. Valida a assinatura via
+`TWILIO_AUTH_TOKEN` (header `X-Twilio-Signature`) — usa `APP_URL` para
+reconstruir a URL exata que o Twilio assinou.
+
+---
+
+## QR Code do PIX (imagem pública)
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/payment-qr/:orderId` | Serve o QR Code do pedido como PNG de verdade |
+
+WhatsApp (Meta e Twilio) só aceita enviar imagem a partir de uma URL
+pública — não aceita um `data:` URI embutido na mensagem. Esse endpoint
+existe só para isso; sem `APP_URL` configurado, o envio de imagem é pulado
+(o texto com o código "copia e cola" continua funcionando normal).
+
+---
+
 ## Pagamento — modo mock (desenvolvimento)
 
 | Método | Rota | Descrição |

@@ -138,6 +138,17 @@ const HUMAN_HANDOFF_REPLY =
 const FALLBACK_REPLY =
   'Não entendi muito bem 😅 Pode me dizer o nome da peça e o modelo do aparelho? Ou digite "atendente" para falar com alguém.';
 
+/**
+ * WhatsApp (Meta e Twilio) só aceita enviar imagem a partir de uma URL
+ * pública — nunca um data: URI embutido. Com APP_URL configurado, usamos
+ * nosso próprio endpoint que serve o PNG de verdade; sem isso (dev local),
+ * caímos de volta pro data: URI, que o provider mock só loga mesmo.
+ */
+function buildQrImageUrl(orderId: string, fallbackDataUrl: string): string {
+  const appUrl = process.env.APP_URL;
+  return appUrl ? `${appUrl}/api/payment-qr/${orderId}` : fallbackDataUrl;
+}
+
 function buildPixReply(orderId: string, total: number, copyPasteCode: string): string {
   return [
     "💳 Pagamento via PIX",
@@ -198,7 +209,9 @@ async function resolveReply(
         return {
           reply: buildPixReply(charge.order.id, Number(charge.order.total), charge.payment?.copyPasteCode ?? ""),
           context,
-          image: charge.payment?.qrCode ? { url: charge.payment.qrCode, caption: "Pagamento via PIX" } : undefined,
+          image: charge.payment?.qrCode
+            ? { url: buildQrImageUrl(charge.order.id, charge.payment.qrCode), caption: "Pagamento via PIX" }
+            : undefined,
         };
       }
       return { reply: "Esse pedido já não está mais aguardando pagamento.", context: { ...context, pendingOrderId: undefined } };
@@ -247,7 +260,9 @@ async function resolveReply(
       return {
         reply: buildPixReply(charge.order.id, Number(charge.order.total), charge.payment?.copyPasteCode ?? ""),
         context,
-        image: charge.payment?.qrCode ? { url: charge.payment.qrCode, caption: "Pagamento via PIX" } : undefined,
+        image: charge.payment?.qrCode
+          ? { url: buildQrImageUrl(charge.order.id, charge.payment.qrCode), caption: "Pagamento via PIX" }
+          : undefined,
       };
     }
 

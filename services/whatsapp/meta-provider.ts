@@ -65,6 +65,10 @@ export const metaWhatsAppProvider: WhatsAppProvider = {
   },
 
   async sendImage(to, imageUrl, caption) {
+    if (imageUrl.startsWith("data:")) {
+      console.warn("[meta-provider] imagem em data: URI não pode ser enviada (precisa de URL pública) — pulando imagem");
+      return;
+    }
     await callGraphApi({
       to,
       type: "image",
