@@ -26,8 +26,27 @@ model Store {
   paymentMessage         String   @default("Pagamento via PIX")
   orderApprovedMessage   String   @default("✅ Pagamento confirmado! Obrigado pela compra.")
   defaultMinStock        Int      @default(2)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+
+  // Integração WhatsApp da loja. Quando preenchida, sobrepõe as variáveis de
+  // ambiente globais (WHATSAPP_PROVIDER etc.) — permite cada loja usar o
+  // próprio número. Tokens/segredos ficam sempre criptografados (ver lib/crypto.ts),
+  // nunca em texto puro.
+  whatsappProvider           String? // "meta" | "twilio" | null (usa o padrão global)
+  whatsappPhoneNumberId      String? @unique
+  whatsappBusinessAccountId  String? // WABA ID — necessário pro Embedded Signup
+  whatsappTokenEncrypted     String?
+  whatsappAppSecretEncrypted String?
+  twilioAccountSid           String?
+  twilioAuthTokenEncrypted   String?
+  twilioWhatsappNumber       String? @unique
+
+  // Integração de pagamento da loja (mesma lógica: sobrepõe o .env quando preenchida)
+  paymentProvider        String?
+  paymentApiKeyEncrypted String?
+  paymentSecretEncrypted String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   users         User[]
   customers     Customer[]

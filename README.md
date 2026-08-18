@@ -276,6 +276,21 @@ verdade.
 - [x] Etapa 8 — autenticação do painel admin
 - [x] Etapa 9 — atendimento humano
 - [x] Etapa 10 — configurações da loja e documentação final
+- [x] Etapa 11 — multi-loja: cada loja conecta o próprio WhatsApp (Meta ou
+      Twilio) pelo painel, com scaffold do "conectar em um clique" via Meta
+      Embedded Signup (Tech Provider — aguardando aprovação da Meta)
+
+## Multi-loja (multi-tenant)
+
+Cada loja pode ter o próprio número de WhatsApp, configurado em
+Configurações → "WhatsApp desta loja". As credenciais ficam criptografadas
+no banco (AES-256-GCM, `lib/crypto.ts`) e sobrepõem as variáveis de
+ambiente globais só para aquela loja — o resto do sistema continua
+funcionando com o padrão do `.env` para lojas sem integração própria. Os
+webhooks (`/api/webhooks/whatsapp` e `/api/webhooks/twilio-whatsapp`) já
+identificam automaticamente de qual loja é cada mensagem recebida. Veja
+[docs/API.md](docs/API.md#integrações-de-whatsapp-por-loja-multi-tenant)
+para os endpoints.
 
 ## Segurança
 
@@ -286,6 +301,10 @@ verdade.
   (`.env`, nunca commitado)
 - Webhooks (`/api/webhooks/payment`, `/api/webhooks/whatsapp`) validam
   assinatura via HMAC-SHA256 quando o segredo está configurado
+- Credenciais de WhatsApp/pagamento de cada loja (multi-tenant) ficam
+  criptografadas no banco com AES-256-GCM (`lib/crypto.ts`,
+  `CREDENTIALS_ENCRYPTION_KEY`) — o painel admin é write-only para esses
+  campos, nunca devolve o valor salvo de volta pro navegador
 - Validação de entrada com Zod em todas as APIs administrativas
 - Trocamos a lib `xlsx` (usada para ler planilhas enviadas pelo usuário) por
   `exceljs`/`papaparse` depois de descobrir duas vulnerabilidades sem

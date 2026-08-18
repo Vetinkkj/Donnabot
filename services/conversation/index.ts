@@ -2,10 +2,11 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getAiProvider } from "@/services/ai";
 import type { ParsedMessage } from "@/services/ai";
-import { getWhatsAppProvider } from "@/services/whatsapp";
+import { getWhatsAppProviderFor } from "@/services/whatsapp";
 import { findBestProductMatch, getCategoryEmoji, getProduct, type SerializedProduct } from "@/services/stock";
 import { cancelOrder, createOrderFromCart } from "@/services/orders";
 import { createPixCharge } from "@/services/payment";
+import { resolveStoreWhatsAppConfig } from "@/services/store";
 
 type CartItem = {
   productId: string;
@@ -344,7 +345,7 @@ export async function handleIncomingMessage(storeId: string, phone: string, text
     data: { context: context as Prisma.InputJsonValue, lastMessageAt: new Date(), status: newStatus },
   });
 
-  const whatsapp = getWhatsAppProvider();
+  const whatsapp = getWhatsAppProviderFor(resolveStoreWhatsAppConfig(store));
   if (image) await whatsapp.sendImage(phone, image.url, image.caption);
   await whatsapp.sendText(phone, reply);
 
@@ -410,7 +411,8 @@ export async function sendAgentMessage(storeId: string, id: string, text: string
   await saveMessage(conversation.id, "OUT", text);
   await db.conversation.update({ where: { id }, data: { lastMessageAt: new Date() } });
 
-  const whatsapp = getWhatsAppProvider();
+  const store = await db.store.findUniqueOrThrow({ where: { id: storeId } });
+  const whatsapp = getWhatsAppProviderFor(resolveStoreWhatsAppConfig(store));
   await whatsapp.sendText(conversation.customer.whatsappPhone, text);
 
   return true;

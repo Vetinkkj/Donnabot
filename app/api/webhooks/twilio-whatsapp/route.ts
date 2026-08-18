@@ -2,18 +2,28 @@ import { createHmac } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStoreId } from "@/lib/current-store";
 import { handleIncomingMessage } from "@/services/conversation";
+import { getStoreByTwilioNumber } from "@/services/store";
+import { decryptSecret } from "@/lib/crypto";
 
 /**
  * Webhook do Twilio WhatsApp Sandbox — alternativa à Meta quando o
  * cadastro direto trava (ver services/whatsapp/twilio-provider.ts).
  * Configure esta URL em Twilio Console → Messaging → Try it out →
  * Send a WhatsApp message → Sandbox Settings → "WHEN A MESSAGE COMES IN".
+ *
+ * Multi-tenant: a loja é descoberta pelo número "To" (o número Twilio que
+ * recebeu a mensagem), mapeado contra `twilioWhatsappNumber` de cada loja;
+ * se nenhuma loja tiver esse número cadastrado, cai no fallback single-store.
  */
 
 const TWIML_EMPTY_RESPONSE = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>";
 
-function isSignatureValid(url: string, params: Record<string, string>, signature: string | null): boolean {
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
+function isSignatureValid(
+  url: string,
+  params: Record<string, string>,
+  signature: string | null,
+  authToken: string | undefined
+): boolean {
   if (!authToken) return true; // sem token configurado, pula validação (dev)
   if (!signature) return false;
 
@@ -30,12 +40,17 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.text();
     const params = Object.fromEntries(new URLSearchParams(rawBody));
 
+    const store = params.To ? await getStoreByTwilioNumber(params.To) : null;
+    const authToken = store?.twilioAuthTokenEncrypted
+      ? decryptSecret(store.twilioAuthTokenEncrypted)
+      : process.env.TWILIO_AUTH_TOKEN;
+
     const signature = request.headers.get("x-twilio-signature");
     const webhookUrl = process.env.APP_URL
       ? `${process.env.APP_URL}/api/webhooks/twilio-whatsapp`
       : request.nextUrl.toString();
 
-    if (!isSignatureValid(webhookUrl, params, signature)) {
+    if (!isSignatureValid(webhookUrl, params, signature, authToken)) {
       return NextResponse.json({ error: "Assinatura inválida" }, { status: 401 });
     }
 
@@ -44,7 +59,7 @@ export async function POST(request: NextRequest) {
     const name = params.ProfileName;
 
     if (from && body) {
-      const storeId = await getCurrentStoreId();
+      const storeId = store?.id ?? (await getCurrentStoreId());
       await handleIncomingMessage(storeId, from, body, name);
     }
 

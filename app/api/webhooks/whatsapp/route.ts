@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStoreId } from "@/lib/current-store";
 import { handleIncomingMessage } from "@/services/conversation";
+import { getStoreByWhatsappPhoneNumberId } from "@/services/store";
 
 /**
  * Webhook real da WhatsApp Business Cloud API (Meta). Enquanto
@@ -9,11 +10,11 @@ import { handleIncomingMessage } from "@/services/conversation";
  * endpoint só entra em ação quando você configurar uma conta WhatsApp
  * Business de verdade e registrar esta URL no painel da Meta.
  *
- * Modo single-store: assume que existe uma única loja (getCurrentStoreId).
- * Se este projeto vier a atender várias lojas de verdade, o storeId
- * precisaria vir do `WHATSAPP_PHONE_NUMBER_ID` presente no payload
- * (`entry[].changes[].value.metadata.phone_number_id`), mapeado para a loja
- * dona daquele número.
+ * Multi-tenant: uma única URL de webhook atende todas as lojas conectadas
+ * (via Tech Provider / Embedded Signup, todas usam o mesmo App da Meta). A
+ * loja é descoberta pelo `phone_number_id` presente no payload
+ * (`entry[].changes[].value.metadata.phone_number_id`); se a loja não tiver
+ * número próprio cadastrado, cai no fallback single-store (getCurrentStoreId).
  */
 
 // Meta chama esta rota com GET uma vez, na hora de configurar o webhook,
@@ -35,6 +36,7 @@ type MetaWebhookPayload = {
   entry?: Array<{
     changes?: Array<{
       value?: {
+        metadata?: { phone_number_id?: string };
         contacts?: Array<{ profile?: { name?: string }; wa_id?: string }>;
         messages?: Array<{ from?: string; type?: string; text?: { body?: string } }>;
       };
@@ -64,10 +66,13 @@ export async function POST(request: NextRequest) {
     }
 
     const payload: MetaWebhookPayload = JSON.parse(rawBody);
-    const storeId = await getCurrentStoreId();
 
     for (const entry of payload.entry ?? []) {
       for (const change of entry.changes ?? []) {
+        const phoneNumberId = change.value?.metadata?.phone_number_id;
+        const store = phoneNumberId ? await getStoreByWhatsappPhoneNumberId(phoneNumberId) : null;
+        const storeId = store?.id ?? (await getCurrentStoreId());
+
         const messages = change.value?.messages ?? [];
         const contacts = change.value?.contacts ?? [];
 

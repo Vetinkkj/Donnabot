@@ -159,9 +159,14 @@ curl -X POST http://localhost:3000/api/mock/whatsapp \
 | GET | `/api/webhooks/whatsapp` | Handshake de verificação (configurado uma vez no painel da Meta) |
 | POST | `/api/webhooks/whatsapp` | Recebe mensagens reais dos clientes |
 
-Só entra em ação quando `WHATSAPP_PROVIDER="meta"` e as credenciais reais
-estiverem configuradas. Valida a assinatura via `WHATSAPP_APP_SECRET`
-(header `X-Hub-Signature-256`) se essa variável estiver definida.
+Multi-tenant: uma única URL de webhook atende todas as lojas conectadas via
+Meta. A loja é descoberta pelo `phone_number_id` presente no payload
+(`entry[].changes[].value.metadata.phone_number_id`), buscado contra
+`whatsappPhoneNumberId` de cada loja; se nenhuma loja tiver esse número
+cadastrado, cai no fallback single-store (`WHATSAPP_PROVIDER="meta"` global).
+Valida a assinatura via `WHATSAPP_APP_SECRET` (header
+`X-Hub-Signature-256`) se essa variável estiver definida — o segredo é do
+App da Meta, não da loja, então continua global mesmo em multi-tenant.
 
 ---
 
@@ -171,12 +176,52 @@ estiverem configuradas. Valida a assinatura via `WHATSAPP_APP_SECRET`
 |---|---|---|
 | POST | `/api/webhooks/twilio-whatsapp` | Recebe mensagens do Twilio WhatsApp Sandbox |
 
-Alternativa a `WHATSAPP_PROVIDER="meta"` para quando o cadastro direto na
-Meta não é possível (ex: sem CNPJ para verificação de empresa). Configure
-com `WHATSAPP_PROVIDER="twilio"` + `TWILIO_ACCOUNT_SID`,
-`TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_NUMBER`. Valida a assinatura via
-`TWILIO_AUTH_TOKEN` (header `X-Twilio-Signature`) — usa `APP_URL` para
-reconstruir a URL exata que o Twilio assinou.
+Alternativa à Meta para quando o cadastro direto não é possível (ex: sem
+CNPJ para verificação de empresa). Multi-tenant: a loja é descoberta pelo
+número "To" (o número Twilio que recebeu a mensagem), buscado contra
+`twilioWhatsappNumber` de cada loja; sem loja correspondente, cai no
+fallback single-store (`WHATSAPP_PROVIDER="twilio"` global +
+`TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_WHATSAPP_NUMBER`). Valida a
+assinatura via o Auth Token da loja encontrada (ou o global, no fallback)
+— header `X-Twilio-Signature` — usa `APP_URL` para reconstruir a URL exata
+que o Twilio assinou.
+
+---
+
+## Integrações de WhatsApp por loja (multi-tenant)
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/admin/integrations/whatsapp` | Status da integração da loja logada (nunca devolve segredos) |
+| POST | `/api/admin/integrations/whatsapp` | Salva credenciais Meta ou Twilio da loja (write-only) |
+| DELETE | `/api/admin/integrations/whatsapp` | Remove a integração — volta a usar o padrão do sistema (`.env`) |
+| POST | `/api/admin/integrations/whatsapp/embedded-signup` | Callback do fluxo "conectar em um clique" da Meta (Embedded Signup) |
+
+Cada loja pode conectar o próprio número de WhatsApp pelo painel (aba
+Configurações), sobrepondo as variáveis de ambiente globais. Tokens/segredos
+ficam sempre criptografados no banco (AES-256-GCM, ver `lib/crypto.ts`) e
+nunca são devolvidos em texto puro — o `GET` só informa se está configurado
+ou não.
+
+```bash
+curl -X POST http://localhost:3000/api/admin/integrations/whatsapp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "twilio",
+    "accountSid": "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "authToken": "seu-auth-token",
+    "whatsappNumber": "+14155238886"
+  }'
+```
+
+O endpoint `embedded-signup` é chamado automaticamente pelo botão "Conectar
+com um clique (Meta)" (só aparece quando `NEXT_PUBLIC_META_APP_ID` e
+`NEXT_PUBLIC_META_CONFIG_ID` estão configurados — exige aprovação como Tech
+Provider pela Meta). Ele troca o código de autorização do Embedded Signup
+por um token de acesso e salva a integração automaticamente. **Não testado
+contra a API de verdade** — ainda não temos um App/config_id de Tech
+Provider aprovado; trate como ponto de partida estruturalmente correto a
+validar quando isso existir.
 
 ---
 
