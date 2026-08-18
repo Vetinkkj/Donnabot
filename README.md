@@ -1,5 +1,7 @@
 # BOTloja
 
+🔗 **Produção:** https://botloja-wine.vercel.app
+
 Automação de atendimento via WhatsApp para lojas de peças de celular: o cliente
 pergunta por uma peça, o sistema consulta o estoque automaticamente, informa
 preço/disponibilidade e conduz a compra até o pagamento via PIX.
@@ -104,6 +106,29 @@ trocar de um pro outro é só mudar uma variável de ambiente
    ```
 
    Acesse [http://localhost:3000](http://localhost:3000).
+
+## Deploy (Vercel)
+
+Produção: `npx vercel --prod` (depois de `npx vercel link` uma vez). Três
+detalhes que custaram tempo pra descobrir e vale saber de antemão:
+
+1. **O arquivo precisa se chamar `middleware.ts`, não `proxy.ts`.** O
+   Next.js 16 renomeou oficialmente para `proxy.ts`, mas a versão da Vercel
+   CLI usada aqui não gera o roteamento corretamente para esse nome (todas
+   as rotas voltavam 404). `middleware.ts` funciona igual.
+2. **O projeto na Vercel precisa ter o "Framework Preset" definido como
+   Next.js.** Se você criar o projeto via `vercel project add` (necessário
+   quando o nome da pasta tem maiúsculas, como aqui), ele fica sem
+   framework configurado e a Vercel usa um builder genérico de site
+   estático — o build parece funcionar, mas nada é servido. Corrija com
+   `vercel project update --framework nextjs`.
+3. **Use a connection string do "connection pooler" do Supabase (porta
+   6543), não a direta (porta 5432).** Funções serverless da Vercel só
+   falam IPv4; a conexão direta do Supabase é IPv6-only sem o add-on pago.
+   Veja `DATABASE_URL`/`DIRECT_URL` em `.env.example`.
+
+Variáveis de ambiente na Vercel: mesmas do `.env.example`, definidas via
+`vercel env add NOME production` ou pelo painel do projeto.
 
 ## Scripts disponíveis
 
@@ -226,7 +251,7 @@ guardar chave de API no banco de dados.
 /types        → tipos TypeScript compartilhados (incl. augmentação do Auth.js)
 /docs         → API.md (referência completa de endpoints)
 auth.ts       → configuração do Auth.js
-proxy.ts      → protege o painel admin e as APIs administrativas
+middleware.ts → protege o painel admin e as APIs administrativas
 ```
 
 Referência completa de todos os endpoints com exemplos: [docs/API.md](docs/API.md).
@@ -255,7 +280,7 @@ verdade.
 ## Segurança
 
 - Painel admin e APIs `/api/admin/*` exigem login (Auth.js, sessão JWT) —
-  ver `proxy.ts`
+  ver `middleware.ts`
 - Senhas com hash `bcrypt`, nunca em texto puro
 - Nenhuma chave/API key/segredo no código — tudo via variáveis de ambiente
   (`.env`, nunca commitado)
