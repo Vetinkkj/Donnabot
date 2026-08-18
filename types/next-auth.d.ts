@@ -4,6 +4,7 @@ declare module "next-auth" {
   interface User {
     storeId: string;
     role: string;
+    isPlatformAdmin: boolean;
   }
 
   interface Session {
@@ -11,6 +12,7 @@ declare module "next-auth" {
       id: string;
       storeId: string;
       role: string;
+      isPlatformAdmin: boolean;
     } & DefaultSession["user"];
   }
 }
@@ -20,5 +22,6 @@ declare module "next-auth/jwt" {
     id: string;
     storeId: string;
     role: string;
+    isPlatformAdmin: boolean;
   }
 }

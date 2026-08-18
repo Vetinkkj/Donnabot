@@ -20,19 +20,22 @@ async function main() {
   const store = await db.store.upsert({
     where: { id: "store-demo" },
     update: storeData,
-    create: { id: "store-demo", ...storeData },
+    create: { id: "store-demo", ...storeData, status: "ACTIVE" },
   });
 
   const passwordHash = await bcrypt.hash("admin123", 10);
   await db.user.upsert({
     where: { email: "admin@botloja.dev" },
-    update: {},
+    // isPlatformAdmin também no update: se esse usuário já existia de um
+    // seed anterior (antes desse campo existir), promove ele também.
+    update: { isPlatformAdmin: true },
     create: {
       storeId: store.id,
       name: "Dono da Loja",
       email: "admin@botloja.dev",
       passwordHash,
       role: "OWNER",
+      isPlatformAdmin: true,
     },
   });
 

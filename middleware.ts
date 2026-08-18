@@ -31,6 +31,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // /platform é a área de administração da plataforma (aprovar/suspender
+  // lojas) — só pra você (isPlatformAdmin), nunca pros donos de loja.
+  if (pathname.startsWith("/platform") || pathname.startsWith("/api/platform")) {
+    if (!token.isPlatformAdmin) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
+    }
+  }
+
   return NextResponse.next();
 }
 
@@ -44,6 +55,8 @@ export const config = {
     "/conversations/:path*",
     "/customers/:path*",
     "/settings/:path*",
+    "/platform/:path*",
     "/api/admin/:path*",
+    "/api/platform/:path*",
   ],
 };

@@ -39,6 +39,68 @@ export async function createStoreWithOwner(input: CreateStoreWithOwnerInput) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// CONTROLE DE ACESSO / ASSINATURA (multi-tenant)
+// ---------------------------------------------------------------------------
+
+/** Loja só funciona (painel + bot) quando está ACTIVE e dentro da validade. */
+export function isStoreOperational(store: { status: string; subscriptionExpiresAt: Date | null }): boolean {
+  if (store.status !== "ACTIVE") return false;
+  if (store.subscriptionExpiresAt && store.subscriptionExpiresAt.getTime() < Date.now()) return false;
+  return true;
+}
+
+export type PlatformStoreSummary = {
+  id: string;
+  name: string;
+  status: string;
+  subscriptionExpiresAt: Date | null;
+  createdAt: Date;
+  ownerEmail: string | null;
+  ownerName: string | null;
+};
+
+/** Lista todas as lojas do sistema — só pra tela de administração da plataforma (isPlatformAdmin). */
+export async function listAllStoresForPlatformAdmin(): Promise<PlatformStoreSummary[]> {
+  const stores = await db.store.findMany({
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      subscriptionExpiresAt: true,
+      createdAt: true,
+      users: { where: { role: "OWNER" }, take: 1, select: { email: true, name: true } },
+    },
+  });
+
+  return stores.map((store) => ({
+    id: store.id,
+    name: store.name,
+    status: store.status,
+    subscriptionExpiresAt: store.subscriptionExpiresAt,
+    createdAt: store.createdAt,
+    ownerEmail: store.users[0]?.email ?? null,
+    ownerName: store.users[0]?.name ?? null,
+  }));
+}
+
+export type UpdateStoreAccessInput = {
+  status?: "PENDING" | "ACTIVE" | "SUSPENDED";
+  subscriptionExpiresAt?: Date | null;
+};
+
+/** Aprova, suspende ou define/estende a validade da assinatura de uma loja. */
+export async function updateStoreAccess(storeId: string, input: UpdateStoreAccessInput) {
+  return db.store.update({
+    where: { id: storeId },
+    data: {
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.subscriptionExpiresAt !== undefined ? { subscriptionExpiresAt: input.subscriptionExpiresAt } : {}),
+    },
+  });
+}
+
 export async function getStoreSettings(storeId: string) {
   return db.store.findUniqueOrThrow({ where: { id: storeId } });
 }

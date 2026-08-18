@@ -6,7 +6,7 @@ import { getWhatsAppProviderFor } from "@/services/whatsapp";
 import { findBestProductMatch, getCategoryEmoji, getProduct, type SerializedProduct } from "@/services/stock";
 import { cancelOrder, createOrderFromCart } from "@/services/orders";
 import { createPixCharge } from "@/services/payment";
-import { resolveStoreWhatsAppConfig } from "@/services/store";
+import { isStoreOperational, resolveStoreWhatsAppConfig } from "@/services/store";
 
 type CartItem = {
   productId: string;
@@ -322,6 +322,14 @@ export async function handleIncomingMessage(storeId: string, phone: string, text
   const conversation = await getOrCreateConversation(storeId, customer.id);
 
   await saveMessage(conversation.id, "IN", text);
+
+  if (!isStoreOperational(store)) {
+    // Loja pendente de aprovação, suspensa ou com assinatura vencida — a
+    // mensagem fica registrada (o dono vê o histórico quando reativar),
+    // mas a Donna não responde.
+    await db.conversation.update({ where: { id: conversation.id }, data: { lastMessageAt: new Date() } });
+    return { reply: null, conversationId: conversation.id, status: conversation.status };
+  }
 
   if (conversation.status !== "BOT") {
     await db.conversation.update({

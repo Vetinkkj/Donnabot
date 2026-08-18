@@ -13,8 +13,19 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Configurações" },
 ];
 
-export function Sidebar({ userLabel, footer }: { userLabel?: string | null; footer?: ReactNode }) {
+export function Sidebar({
+  userLabel,
+  footer,
+  isPlatformAdmin,
+}: {
+  userLabel?: string | null;
+  footer?: ReactNode;
+  isPlatformAdmin?: boolean;
+}) {
   const pathname = usePathname();
+  const navItems = isPlatformAdmin
+    ? [...NAV_ITEMS, { href: "/platform", label: "Administração da plataforma" }]
+    : NAV_ITEMS;
 
   return (
     <nav className="flex shrink-0 flex-col gap-1 border-b border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950 md:h-screen md:w-56 md:border-b-0 md:border-r">
@@ -22,7 +33,7 @@ export function Sidebar({ userLabel, footer }: { userLabel?: string | null; foot
         BOTloja
       </div>
       <div className="flex gap-1 overflow-x-auto md:flex-col md:overflow-x-visible">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const active = pathname?.startsWith(item.href);
           return (
             <Link

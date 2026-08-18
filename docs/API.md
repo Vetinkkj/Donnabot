@@ -137,6 +137,40 @@ curl -X PATCH http://localhost:3000/api/admin/settings \
 
 ---
 
+## Administração da plataforma (aprovar/suspender lojas)
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/platform/stores` | Lista todas as lojas do sistema com status e validade |
+| PATCH | `/api/platform/stores/:id` | Aprova, suspende ou define/estende a validade de uma loja |
+
+Só acessível por um usuário com `isPlatformAdmin=true` (o dono da
+plataforma, não os donos de cada loja) — verificado tanto no `middleware.ts`
+quanto dentro de cada rota. Loja nova nasce com `status="PENDING"`; enquanto
+não virar `ACTIVE`, o dono não consegue usar o painel e a Donna não responde
+no WhatsApp (ver `services/store#isStoreOperational`). Também fica bloqueada
+se `status="SUSPENDED"` ou se `subscriptionExpiresAt` já passou.
+
+```bash
+curl -X PATCH http://localhost:3000/api/platform/stores/<id> \
+  -H "Content-Type: application/json" \
+  -d '{"status": "ACTIVE", "subscriptionExpiresAt": "2026-12-31T23:59:59.000Z"}'
+```
+
+Pra promover um usuário existente a platform admin (não tem UI pra isso de
+propósito — é uma ação rara e sensível):
+
+```bash
+node -e "
+const { PrismaClient } = require('@prisma/client');
+const db = new PrismaClient();
+db.user.update({ where: { email: 'voce@exemplo.com' }, data: { isPlatformAdmin: true } })
+  .then(() => db.\$disconnect());
+"
+```
+
+---
+
 ## WhatsApp — modo mock (desenvolvimento)
 
 | Método | Rota | Descrição |

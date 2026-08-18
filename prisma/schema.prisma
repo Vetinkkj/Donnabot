@@ -12,20 +12,35 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
-// LOJA (preparado para múltiplas lojas no futuro)
+// LOJA (multi-tenant)
 // ---------------------------------------------------------------------------
 
+// PENDING = acabou de se cadastrar, aguardando você aprovar (confirmar que
+// assinou/pagou). ACTIVE = liberada. SUSPENDED = você revogou manualmente
+// (ex: inadimplente, cancelou). Ver services/store#isStoreOperational.
+enum StoreStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
 model Store {
-  id                     String   @id @default(cuid())
+  id                     String      @id @default(cuid())
   name                   String
   phone                  String?
   address                String?
   logoUrl                String?
-  botName                String   @default("Dona")
-  welcomeMessage         String   @default("Olá! 👋 Como posso ajudar?")
-  paymentMessage         String   @default("Pagamento via PIX")
-  orderApprovedMessage   String   @default("✅ Pagamento confirmado! Obrigado pela compra.")
-  defaultMinStock        Int      @default(2)
+  botName                String      @default("Dona")
+  welcomeMessage         String      @default("Olá! 👋 Como posso ajudar?")
+  paymentMessage         String      @default("Pagamento via PIX")
+  orderApprovedMessage   String      @default("✅ Pagamento confirmado! Obrigado pela compra.")
+  defaultMinStock        Int         @default(2)
+
+  // Controle de acesso/assinatura. Enquanto não for ACTIVE (ou depois de
+  // subscriptionExpiresAt passar), o painel fica bloqueado pro dono e a
+  // Donna para de responder no WhatsApp dessa loja.
+  status                 StoreStatus @default(PENDING)
+  subscriptionExpiresAt  DateTime?   // null = sem validade definida (enquanto ACTIVE)
 
   // Integração WhatsApp da loja. Quando preenchida, sobrepõe as variáveis de
   // ambiente globais (WHATSAPP_PROVIDER etc.) — permite cada loja usar o
@@ -68,14 +83,17 @@ enum UserRole {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  storeId      String
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         UserRole @default(OWNER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String   @id @default(cuid())
+  storeId         String
+  name            String
+  email           String   @unique
+  passwordHash    String
+  role            UserRole @default(OWNER)
+  // Dono da plataforma (você) — não é por loja. Enxerga/aprova todas as
+  // lojas em /platform e nunca é bloqueado por status de assinatura.
+  isPlatformAdmin Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   store               Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
   assignedConversations Conversation[]

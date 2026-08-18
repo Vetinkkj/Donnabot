@@ -279,8 +279,21 @@ verdade.
 - [x] Etapa 11 — multi-loja: cada loja conecta o próprio WhatsApp (Meta ou
       Twilio) pelo painel, com scaffold do "conectar em um clique" via Meta
       Embedded Signup (Tech Provider — aguardando aprovação da Meta)
+- [x] Etapa 12 — cadastro público de lojas (`/signup`, dono escolhe o
+      próprio e-mail/senha) + controle de acesso: você aprova cada loja
+      nova e define/renova a validade da assinatura em `/platform`
 
 ## Multi-loja (multi-tenant)
+
+Qualquer pessoa pode criar a própria loja em `/signup`, escolhendo o
+e-mail e a senha do próprio acesso. A loja nasce com `status="PENDING"` —
+o painel fica bloqueado pro dono e a Donna não responde no WhatsApp até
+você aprovar em `/platform` (área só sua, visível pra quem tem
+`isPlatformAdmin=true`). Lá você também define/estende a validade da
+assinatura (`subscriptionExpiresAt`) e suspende quem não estiver mais em
+dia — nos dois casos o acesso é bloqueado automaticamente, sem precisar
+mexer em código. Veja
+[docs/API.md](docs/API.md#administração-da-plataforma-aprovarsuspender-lojas).
 
 Cada loja pode ter o próprio número de WhatsApp, configurado em
 Configurações → "WhatsApp desta loja". As credenciais ficam criptografadas
@@ -305,6 +318,14 @@ para os endpoints.
   criptografadas no banco com AES-256-GCM (`lib/crypto.ts`,
   `CREDENTIALS_ENCRYPTION_KEY`) — o painel admin é write-only para esses
   campos, nunca devolve o valor salvo de volta pro navegador
+- `/platform` (aprovar/suspender lojas) exige `isPlatformAdmin=true`,
+  checado tanto no `middleware.ts` (JWT) quanto dentro de cada rota — não
+  existe UI pra promover alguém a platform admin de propósito (só via
+  script direto no banco, ver docs/API.md)
+- Cadastro público em `/signup` não tem verificação de e-mail nem rate
+  limit por enquanto (mesma decisão da Etapa 11) — mas toda loja nova
+  nasce bloqueada (`PENDING`) até você aprovar manualmente, então o pior
+  caso de abuso é "alguém cria uma loja que nunca vai ser aprovada"
 - Validação de entrada com Zod em todas as APIs administrativas
 - Trocamos a lib `xlsx` (usada para ler planilhas enviadas pelo usuário) por
   `exceljs`/`papaparse` depois de descobrir duas vulnerabilidades sem

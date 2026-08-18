@@ -30,6 +30,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: user.name,
           storeId: user.storeId,
           role: user.role,
+          isPlatformAdmin: user.isPlatformAdmin,
         };
       },
     }),
@@ -40,6 +41,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id as string;
         token.storeId = user.storeId;
         token.role = user.role;
+        token.isPlatformAdmin = user.isPlatformAdmin;
       }
       return token;
     },
@@ -47,6 +49,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.user.id = token.id as string;
       session.user.storeId = token.storeId as string;
       session.user.role = token.role as string;
+      session.user.isPlatformAdmin = token.isPlatformAdmin as boolean;
       return session;
     },
   },
