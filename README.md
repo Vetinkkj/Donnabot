@@ -1,4 +1,4 @@
-# BOTloja
+# Donna Bot
 
 🔗 **Produção:** https://botloja-wine.vercel.app
 
