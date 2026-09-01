@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BRAND_NAME } from "@/lib/marketing-config";
@@ -20,7 +21,10 @@ export function MarketingNav() {
           href="/"
           className="flex shrink-0 items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50"
         >
-          <span aria-hidden>🤖</span> {BRAND_NAME}
+          <span className="relative block h-9 w-9 overflow-hidden rounded-full bg-black">
+            <Image src="/logo-icon.png" alt="" fill sizes="36px" className="object-cover" />
+          </span>
+          {BRAND_NAME}
         </Link>
 
         <Link
