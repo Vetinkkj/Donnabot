@@ -12,6 +12,9 @@ export function MarketingFooter() {
           <Link href="/duvidas" className="hover:underline">
             Dúvidas
           </Link>
+          <Link href="/privacidade" className="hover:underline">
+            Privacidade
+          </Link>
           <Link href="/login" className="hover:underline">
             Entrar
           </Link>
