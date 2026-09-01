@@ -41,6 +41,9 @@ model Store {
   // Donna para de responder no WhatsApp dessa loja.
   status                 StoreStatus @default(PENDING)
   subscriptionExpiresAt  DateTime?   // null = sem validade definida (enquanto ACTIVE)
+  // Plano escolhido no cadastro (site público) — "monthly" | "yearly" | null.
+  // Só um indicativo pra você saber o que cobrar na hora de aprovar a loja.
+  intendedPlan           String?
 
   // Integração WhatsApp da loja. Quando preenchida, sobrepõe as variáveis de
   // ambiente globais (WHATSAPP_PROVIDER etc.) — permite cada loja usar o

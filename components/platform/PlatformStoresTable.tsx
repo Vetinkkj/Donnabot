@@ -13,6 +13,12 @@ export type PlatformStoreRow = {
   createdAt: string;
   ownerEmail: string | null;
   ownerName: string | null;
+  intendedPlan: string | null;
+};
+
+const PLAN_LABEL: Record<string, string> = {
+  monthly: "Mensal (R$ 300/mês)",
+  yearly: "Anual (R$ 3.000/ano)",
 };
 
 const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger"> = {
@@ -74,6 +80,9 @@ function StoreRow({ store, onUpdated }: { store: PlatformStoreRow; onUpdated: (s
       <td className="px-3 py-3 align-top">
         <div className="font-medium text-zinc-900 dark:text-zinc-50">{store.name}</div>
         <div className="text-xs text-zinc-500">{store.ownerEmail ?? "sem dono cadastrado"}</div>
+        {store.intendedPlan && (
+          <div className="text-xs text-zinc-400">Plano escolhido: {PLAN_LABEL[store.intendedPlan] ?? store.intendedPlan}</div>
+        )}
       </td>
       <td className="px-3 py-3 align-top">
         <Badge tone={STATUS_TONE[store.status] ?? "neutral"}>{STATUS_LABEL[store.status] ?? store.status}</Badge>

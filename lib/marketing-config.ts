@@ -13,5 +13,5 @@ export const CONTACT_WHATSAPP = "";
 export const PRICING = {
   monthly: 300,
   yearly: 3000,
-  trialDays: 30,
+  trialDays: 10,
 };

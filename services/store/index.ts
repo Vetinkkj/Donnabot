@@ -13,6 +13,7 @@ export type CreateStoreWithOwnerInput = {
   ownerName: string;
   email: string;
   password: string;
+  plan?: "monthly" | "yearly";
 };
 
 /** Cria uma loja nova e o usuário dono dela (role OWNER) em uma única transação. */
@@ -25,7 +26,9 @@ export async function createStoreWithOwner(input: CreateStoreWithOwnerInput) {
   const passwordHash = await bcrypt.hash(input.password, 10);
 
   return db.$transaction(async (tx) => {
-    const store = await tx.store.create({ data: { name: input.storeName } });
+    const store = await tx.store.create({
+      data: { name: input.storeName, intendedPlan: input.plan ?? null },
+    });
     const user = await tx.user.create({
       data: {
         storeId: store.id,
@@ -58,6 +61,7 @@ export type PlatformStoreSummary = {
   createdAt: Date;
   ownerEmail: string | null;
   ownerName: string | null;
+  intendedPlan: string | null;
 };
 
 /** Lista todas as lojas do sistema — só pra tela de administração da plataforma (isPlatformAdmin). */
@@ -70,6 +74,7 @@ export async function listAllStoresForPlatformAdmin(): Promise<PlatformStoreSumm
       status: true,
       subscriptionExpiresAt: true,
       createdAt: true,
+      intendedPlan: true,
       users: { where: { role: "OWNER" }, take: 1, select: { email: true, name: true } },
     },
   });
@@ -82,6 +87,7 @@ export async function listAllStoresForPlatformAdmin(): Promise<PlatformStoreSumm
     createdAt: store.createdAt,
     ownerEmail: store.users[0]?.email ?? null,
     ownerName: store.users[0]?.name ?? null,
+    intendedPlan: store.intendedPlan,
   }));
 }
 

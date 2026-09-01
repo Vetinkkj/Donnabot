@@ -12,6 +12,8 @@ export const signupSchema = z
     email: z.string().trim().email("E-mail inválido"),
     password: z.string().min(8, "Senha precisa ter pelo menos 8 caracteres"),
     confirmPassword: z.string(),
+    // Plano escolhido nos cards do site — opcional, só um indicativo.
+    plan: z.enum(["monthly", "yearly"]).optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "As senhas não coincidem",
