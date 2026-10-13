@@ -130,6 +130,12 @@ detalhes que custaram tempo pra descobrir e vale saber de antemão:
 Variáveis de ambiente na Vercel: mesmas do `.env.example`, definidas via
 `vercel env add NOME production` ou pelo painel do projeto.
 
+**Supabase grátis pausa o banco** depois de alguns dias sem atividade (aí o
+login e a Donna param). O `vercel.json` agenda um Cron Job diário (9h de
+Brasília) em `/api/cron/keep-alive`, que só faz uma leitura no banco pra
+mantê-lo acordado. Opcional: defina `CRON_SECRET` na Vercel pra que só o
+próprio cron consiga chamar essa rota.
+
 ## Scripts disponíveis
 
 | Comando | O que faz |
