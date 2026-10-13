@@ -1,16 +1,13 @@
 import type { WhatsAppButton, WhatsAppProvider } from "./provider";
+import { META_GRAPH_URL } from "@/lib/meta";
 
 /**
  * Provider real para a WhatsApp Business Cloud API (Meta). Não usa scraping
  * nem automação não-oficial — apenas a API HTTP documentada pela Meta.
  *
- * Como este projeto não usa credenciais reais por padrão, esta
- * implementação não foi testada contra a API de verdade — trate como um
- * ponto de partida a validar quando você tiver uma conta WhatsApp Business
- * aprovada.
+ * Validado em produção com o número de teste da Meta (texto e botões de
+ * resposta rápida).
  */
-
-const GRAPH_API_VERSION = "v20.0";
 
 export type MetaProviderConfig = {
   token: string;
@@ -18,7 +15,7 @@ export type MetaProviderConfig = {
 };
 
 async function callGraphApi(config: MetaProviderConfig, body: Record<string, unknown>) {
-  const response = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${config.phoneNumberId}/messages`, {
+  const response = await fetch(`${META_GRAPH_URL}/${config.phoneNumberId}/messages`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

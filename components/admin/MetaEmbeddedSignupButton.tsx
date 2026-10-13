@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { META_GRAPH_VERSION } from "@/lib/meta";
 
 declare global {
   interface Window {
@@ -16,21 +17,33 @@ declare global {
   }
 }
 
+/**
+ * - new_number: número que ainda não está em nenhum WhatsApp (chip novo) —
+ *   vai ser registrado na Cloud API.
+ * - business_app: Coexistência — a loja continua usando o número no app
+ *   WhatsApp Business no celular e a Donna atende pela API ao mesmo tempo.
+ */
+export type EmbeddedSignupMode = "new_number" | "business_app";
+
 type Props = {
   appId: string;
   configId: string;
+  mode: EmbeddedSignupMode;
+  label: string;
   onConnected: (status: unknown) => void;
 };
+
+// Eventos de fim do popup da Meta: FINISH (número novo) e
+// FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING (Coexistência — não traz phone_number_id,
+// o servidor busca pelo WABA).
+const FINISH_EVENTS = new Set(["FINISH", "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING"]);
 
 /**
  * Botão de conexão em um clique via Meta Embedded Signup — o fluxo oficial
  * pra Tech Providers conectarem o WhatsApp de um cliente sem trocar token
- * manualmente. Não testado contra a API de verdade (exige aprovação como
- * Tech Provider e um config_id reais, que este projeto ainda não tem) —
- * trate como ponto de partida estruturalmente correto a validar depois.
- * Docs: developers.facebook.com/docs/whatsapp/embedded-signup
+ * manualmente. Docs: developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup
  */
-export function MetaEmbeddedSignupButton({ appId, configId, onConnected }: Props) {
+export function MetaEmbeddedSignupButton({ appId, configId, mode, label, onConnected }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const capturedRef = useRef<{ phoneNumberId?: string; wabaId?: string }>({});
@@ -40,7 +53,7 @@ export function MetaEmbeddedSignupButton({ appId, configId, onConnected }: Props
       if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") return;
       try {
         const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        if (data?.type === "WA_EMBEDDED_SIGNUP" && data.event === "FINISH") {
+        if (data?.type === "WA_EMBEDDED_SIGNUP" && FINISH_EVENTS.has(data.event)) {
           capturedRef.current = {
             phoneNumberId: data.data?.phone_number_id,
             wabaId: data.data?.waba_id,
@@ -55,11 +68,12 @@ export function MetaEmbeddedSignupButton({ appId, configId, onConnected }: Props
   }, []);
 
   useEffect(() => {
-    if (window.FB) return;
+    if (window.FB || document.getElementById("facebook-jssdk")) return;
     window.fbAsyncInit = () => {
-      window.FB?.init({ appId, autoLogAppEvents: true, xfbml: true, version: "v20.0" });
+      window.FB?.init({ appId, autoLogAppEvents: true, xfbml: true, version: META_GRAPH_VERSION });
     };
     const script = document.createElement("script");
+    script.id = "facebook-jssdk";
     script.src = "https://connect.facebook.net/pt_BR/sdk.js";
     script.async = true;
     script.defer = true;
@@ -89,6 +103,7 @@ export function MetaEmbeddedSignupButton({ appId, configId, onConnected }: Props
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               code,
+              mode,
               phoneNumberId: capturedRef.current.phoneNumberId,
               wabaId: capturedRef.current.wabaId,
             }),
@@ -109,7 +124,11 @@ export function MetaEmbeddedSignupButton({ appId, configId, onConnected }: Props
         config_id: configId,
         response_type: "code",
         override_default_response_type: true,
-        extras: { setup: {}, featureType: "", sessionInfoVersion: "3" },
+        extras: {
+          setup: {},
+          featureType: mode === "business_app" ? "whatsapp_business_app_onboarding" : "",
+          sessionInfoVersion: "3",
+        },
       }
     );
   }
@@ -117,7 +136,7 @@ export function MetaEmbeddedSignupButton({ appId, configId, onConnected }: Props
   return (
     <div className="flex flex-col gap-2">
       <Button type="button" variant="secondary" onClick={handleClick} disabled={loading}>
-        {loading ? "Conectando..." : "Conectar com um clique (Meta)"}
+        {loading ? "Conectando..." : label}
       </Button>
       {error && <span className="text-xs text-red-600">{error}</span>}
     </div>

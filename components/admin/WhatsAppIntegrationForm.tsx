@@ -43,6 +43,11 @@ export function WhatsAppIntegrationForm({
 
   const isConfigured = status.metaConfigured || status.twilioConfigured;
 
+  function handleEmbeddedSignupConnected(data: unknown) {
+    setStatus(data as WhatsAppIntegrationStatus);
+    setSavedAt(new Date());
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSubmitting(true);
@@ -118,16 +123,27 @@ export function WhatsAppIntegrationForm({
       {embeddedSignup && !isConfigured && (
         <div className="mb-4 flex flex-col gap-2 rounded-md border border-dashed border-zinc-300 p-3 dark:border-zinc-700">
           <p className="text-xs text-zinc-500">
-            Conecte o WhatsApp Business da loja em um clique, direto pela Meta (recomendado):
+            Conecte o WhatsApp da loja em um clique, direto pela Meta (recomendado):
           </p>
           <MetaEmbeddedSignupButton
             appId={embeddedSignup.appId}
             configId={embeddedSignup.configId}
-            onConnected={(data) => {
-              setStatus(data as WhatsAppIntegrationStatus);
-              setSavedAt(new Date());
-            }}
+            mode="business_app"
+            label="Já uso o WhatsApp Business no celular"
+            onConnected={handleEmbeddedSignupConnected}
           />
+          <p className="text-xs text-zinc-500">
+            A loja continua usando o app no celular normalmente e a Donna atende pelo mesmo número. Exige o app
+            WhatsApp Business atualizado (quem usa o WhatsApp comum precisa migrar para o Business antes).
+          </p>
+          <MetaEmbeddedSignupButton
+            appId={embeddedSignup.appId}
+            configId={embeddedSignup.configId}
+            mode="new_number"
+            label="Conectar um número novo"
+            onConnected={handleEmbeddedSignupConnected}
+          />
+          <p className="text-xs text-zinc-500">Para um chip que ainda não está em nenhum WhatsApp.</p>
           <p className="text-center text-xs text-zinc-400">— ou configure manualmente abaixo —</p>
         </div>
       )}
