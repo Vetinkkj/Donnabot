@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { getWhatsAppProvider } from "@/services/whatsapp";
+import { getWhatsAppProviderFor } from "@/services/whatsapp";
+import { resolveStoreWhatsAppConfig } from "@/services/store";
 import { getCategoryEmoji } from "@/services/stock";
 import { getOrder } from "@/services/orders";
 import type { PaymentProvider } from "./provider";
@@ -78,7 +79,8 @@ async function notifyCustomer(order: NonNullable<Awaited<ReturnType<typeof getOr
     });
   }
 
-  const whatsapp = getWhatsAppProvider();
+  // WhatsApp da própria loja (multi-loja) — cai no padrão do .env se a loja não tiver integração.
+  const whatsapp = getWhatsAppProviderFor(resolveStoreWhatsAppConfig(order.store));
   await whatsapp.sendText(order.customer.whatsappPhone, message);
 }
 
@@ -87,8 +89,8 @@ export type ConfirmPaymentResult =
   | { ok: false; reason: "order_not_found" | "order_not_pending" };
 
 /**
- * Chamado quando o gateway confirma o pagamento (webhook real ou aprovação
- * mock). Dá baixa no estoque e avisa o cliente — só AQUI o estoque é
+ * Chamado quando o pagamento é confirmado: webhook do gateway, aprovação
+ * mock ou o atendente clicando em "Marcar como pago" no painel. Dá baixa no estoque e avisa o cliente — só AQUI o estoque é
  * reduzido, nunca antes. Idempotente: se o pedido já estiver PAID, não
  * processa de novo (webhooks podem chegar duplicados).
  */

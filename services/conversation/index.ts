@@ -5,7 +5,6 @@ import type { ParsedMessage } from "@/services/ai";
 import { getWhatsAppProviderFor } from "@/services/whatsapp";
 import { findBestProductMatch, getCategoryEmoji, getProduct, type SerializedProduct } from "@/services/stock";
 import { cancelOrder, createOrderFromCart } from "@/services/orders";
-import { createPixCharge } from "@/services/payment";
 import { isStoreOperational, resolveStoreWhatsAppConfig } from "@/services/store";
 
 type CartItem = {
@@ -74,7 +73,7 @@ function buildProductReply(product: SerializedProduct, requestedQuantity: number
     return [
       `Temos somente ${product.stockQuantity} unidades disponíveis.`,
       `📦 Estoque atual: ${product.stockQuantity}`,
-      `Deseja comprar ${product.stockQuantity} unidades?`,
+      `Se quiser levar as ${product.stockQuantity} unidades, digite "adicionar ao carrinho" 🛒`,
     ].join("\n");
   }
 
@@ -89,7 +88,7 @@ function buildProductReply(product: SerializedProduct, requestedQuantity: number
   }
 
   lines.push(`📦 Estoque: ${product.stockQuantity} unidades`);
-  lines.push("Deseja comprar?");
+  lines.push('Para levar, digite "adicionar ao carrinho" 🛒');
 
   return lines.join("\n");
 }
@@ -115,19 +114,33 @@ function buildCartReply(cart: CartItem[]): string {
     lines.push(`${emoji} ${item.name} — ${item.quantity}x ${currency.format(item.unitPrice)} = ${currency.format(subtotal)}`);
   }
   lines.push(`💰 Total: ${currency.format(cartTotal(cart))}`);
-  lines.push('Digite "finalizar" para fechar o pedido e ir para o pagamento, ou me diga outra peça para adicionar.');
+  lines.push('Quer mais alguma peça? É só me dizer qual. Para fechar a compra, digite "finalizar carrinho".');
   return lines.join("\n");
 }
 
-function buildOrderSummary(cart: CartItem[], orderId: string, total: number): string {
-  const lines = [`Perfeito! Seu pedido #${orderId.slice(-6).toUpperCase()} ficou:`];
+function shortOrderId(orderId: string): string {
+  return orderId.slice(-6).toUpperCase();
+}
+
+/**
+ * Ao finalizar o carrinho a Donna não gera cobrança sozinha: o pedido fica
+ * PENDING e a conversa vai pra fila de atendimento, onde um humano manda o
+ * link de pagamento. O resumo fica salvo no histórico, então o atendente vê
+ * o pedido ao abrir a conversa no painel.
+ */
+function buildCheckoutHandoffReply(cart: CartItem[], orderId: string, total: number): string {
+  const lines = [`Perfeito! Seu pedido #${shortOrderId(orderId)} ficou:`];
   for (const item of cart) {
     const emoji = getCategoryEmoji(item.categoryName);
     lines.push(`${emoji} ${item.name} — Quantidade: ${item.quantity}`);
   }
   lines.push(`💰 Total: ${currency.format(total)}`);
-  lines.push("Deseja prosseguir para o pagamento?");
+  lines.push("Vou te transferir para um atendente, que já vai te enviar o link de pagamento 🙋‍♀️");
   return lines.join("\n");
+}
+
+function buildPendingOrderHandoffReply(orderId: string): string {
+  return `Seu pedido #${shortOrderId(orderId)} já está separado! Vou te passar para um atendente, que vai te enviar o link de pagamento 🙋‍♀️`;
 }
 
 const NOT_FOUND_REPLY =
@@ -139,39 +152,48 @@ const HUMAN_HANDOFF_REPLY =
 const FALLBACK_REPLY =
   'Não entendi muito bem 😅 Pode me dizer o nome da peça e o modelo do aparelho? Ou digite "atendente" para falar com alguém.';
 
-/**
- * WhatsApp (Meta e Twilio) só aceita enviar imagem a partir de uma URL
- * pública — nunca um data: URI embutido. Com APP_URL configurado, usamos
- * nosso próprio endpoint que serve o PNG de verdade; sem isso (dev local),
- * caímos de volta pro data: URI, que o provider mock só loga mesmo.
- */
-function buildQrImageUrl(orderId: string, fallbackDataUrl: string): string {
-  const appUrl = process.env.APP_URL;
-  return appUrl ? `${appUrl}/api/payment-qr/${orderId}` : fallbackDataUrl;
-}
-
-function buildPixReply(orderId: string, total: number, copyPasteCode: string): string {
-  return [
-    "💳 Pagamento via PIX",
-    `💰 Valor: ${currency.format(total)}`,
-    "QR Code: enviado como imagem — abra a conversa no WhatsApp para escanear.",
-    `(Em modo de teste, veja o QR e simule o pagamento em /mock-payment/${orderId})`,
-    "Ou copie e cole:",
-    copyPasteCode,
-    "Após realizar o pagamento, aguarde a confirmação.",
-  ].join("\n");
-}
-
 const EMPTY_CART_REPLY =
   "Seu carrinho está vazio ainda. Me diga qual peça você quer que eu te ajudo a montar o pedido.";
+
+const NOTHING_TO_ADD_REPLY =
+  "Me diga qual peça você procura (ex: \"tela do iPhone 11\") que eu vejo se temos e coloco no carrinho 🙂";
 
 const NOTHING_TO_CANCEL_REPLY = "Não tem nada pra cancelar no momento 🙂";
 
 type ResolvedReply = {
   reply: string;
   context: ConversationContext;
-  image?: { url: string; caption: string };
+  /** true = conversa vai para a fila "Aguardando atendente" e a Donna para de responder. */
+  handoff?: boolean;
 };
+
+/** Pedido do contexto ainda aguardando pagamento? (pode ter sido pago/cancelado pelo atendente no painel) */
+async function isOrderStillPending(storeId: string, orderId: string): Promise<boolean> {
+  const order = await db.order.findFirst({ where: { id: orderId, storeId }, select: { status: true } });
+  return order?.status === "PENDING";
+}
+
+async function addLastProductToCart(storeId: string, context: ConversationContext): Promise<ResolvedReply> {
+  const lastProduct = context.lastProduct!;
+  const fresh = await getProduct(storeId, lastProduct.id);
+  if (!fresh || fresh.stockQuantity <= 0) {
+    return {
+      reply: "Poxa, essa peça acabou de ficar sem estoque 😕 Quer ver outra opção?",
+      context: { ...context, lastProduct: undefined },
+    };
+  }
+
+  const quantity = Math.min(lastProduct.quantity, fresh.stockQuantity);
+  const cart = addToCart(context.cart ?? [], {
+    productId: fresh.id,
+    name: fresh.name,
+    categoryName: fresh.categoryName,
+    unitPrice: fresh.price,
+    quantity,
+  });
+
+  return { reply: `✅ Adicionado ao carrinho!\n${buildCartReply(cart)}`, context: { ...context, cart, lastProduct: undefined } };
+}
 
 async function resolveReply(
   store: { welcomeMessage: string },
@@ -183,7 +205,7 @@ async function resolveReply(
   const context = readContext(conversationContext);
 
   if (parsed.intent === "human_handoff") {
-    return { reply: HUMAN_HANDOFF_REPLY, context };
+    return { reply: HUMAN_HANDOFF_REPLY, context, handoff: true };
   }
 
   if (parsed.intent === "cancel") {
@@ -203,22 +225,26 @@ async function resolveReply(
     return { reply: NOTHING_TO_CANCEL_REPLY, context };
   }
 
+  if (parsed.intent === "add_to_cart") {
+    if (context.lastProduct) return addLastProductToCart(storeId, context);
+    return { reply: NOTHING_TO_ADD_REPLY, context };
+  }
+
+  if (parsed.intent === "view_cart") {
+    const cart = context.cart ?? [];
+    return { reply: cart.length > 0 ? buildCartReply(cart) : EMPTY_CART_REPLY, context };
+  }
+
   if (parsed.intent === "checkout") {
-    if (context.pendingOrderId) {
-      const charge = await createPixCharge(storeId, context.pendingOrderId);
-      if (charge && !charge.alreadyResolved) {
-        return {
-          reply: buildPixReply(charge.order.id, Number(charge.order.total), charge.payment?.copyPasteCode ?? ""),
-          context,
-          image: charge.payment?.qrCode
-            ? { url: buildQrImageUrl(charge.order.id, charge.payment.qrCode), caption: "Pagamento via PIX" }
-            : undefined,
-        };
+    const cart = context.cart ?? [];
+
+    if (context.pendingOrderId && cart.length === 0) {
+      if (await isOrderStillPending(storeId, context.pendingOrderId)) {
+        return { reply: buildPendingOrderHandoffReply(context.pendingOrderId), context, handoff: true };
       }
-      return { reply: "Esse pedido já não está mais aguardando pagamento.", context: { ...context, pendingOrderId: undefined } };
+      return { reply: EMPTY_CART_REPLY, context: { ...context, pendingOrderId: undefined } };
     }
 
-    const cart = context.cart ?? [];
     if (cart.length === 0) {
       return { reply: EMPTY_CART_REPLY, context };
     }
@@ -238,8 +264,12 @@ async function resolveReply(
       return { reply: lines.join("\n"), context };
     }
 
-    const reply = buildOrderSummary(cart, order.id, Number(order.total));
-    return { reply, context: { ...context, cart: undefined, lastProduct: undefined, pendingOrderId: order.id } };
+    const reply = buildCheckoutHandoffReply(cart, order.id, Number(order.total));
+    return {
+      reply,
+      context: { ...context, cart: undefined, lastProduct: undefined, pendingOrderId: order.id },
+      handoff: true,
+    };
   }
 
   if (parsed.intent === "greeting") {
@@ -247,45 +277,14 @@ async function resolveReply(
   }
 
   if (parsed.intent === "affirmative") {
+    // "sim" depois de uma peça oferecida continua funcionando como "adicionar ao carrinho".
+    if (context.lastProduct) return addLastProductToCart(storeId, context);
+
     if (context.pendingOrderId) {
-      const charge = await createPixCharge(storeId, context.pendingOrderId);
-      if (!charge) {
-        return { reply: "Não encontrei esse pedido. Vamos começar de novo?", context: { ...context, pendingOrderId: undefined } };
+      if (await isOrderStillPending(storeId, context.pendingOrderId)) {
+        return { reply: buildPendingOrderHandoffReply(context.pendingOrderId), context, handoff: true };
       }
-      if (charge.alreadyResolved) {
-        return {
-          reply: "Esse pedido não está mais aguardando pagamento — se quiser, me diga outra peça que eu monto um novo pedido.",
-          context: { ...context, pendingOrderId: undefined },
-        };
-      }
-      return {
-        reply: buildPixReply(charge.order.id, Number(charge.order.total), charge.payment?.copyPasteCode ?? ""),
-        context,
-        image: charge.payment?.qrCode
-          ? { url: buildQrImageUrl(charge.order.id, charge.payment.qrCode), caption: "Pagamento via PIX" }
-          : undefined,
-      };
-    }
-
-    if (context.lastProduct) {
-      const fresh = await getProduct(storeId, context.lastProduct.id);
-      if (!fresh || fresh.stockQuantity <= 0) {
-        return {
-          reply: "Poxa, essa peça acabou de ficar sem estoque 😕 Quer ver outra opção?",
-          context: { ...context, lastProduct: undefined },
-        };
-      }
-
-      const quantity = Math.min(context.lastProduct.quantity, fresh.stockQuantity);
-      const cart = addToCart(context.cart ?? [], {
-        productId: fresh.id,
-        name: fresh.name,
-        categoryName: fresh.categoryName,
-        unitPrice: fresh.price,
-        quantity,
-      });
-
-      return { reply: buildCartReply(cart), context: { ...context, cart, lastProduct: undefined } };
+      return { reply: FALLBACK_REPLY, context: { ...context, pendingOrderId: undefined } };
     }
 
     return { reply: FALLBACK_REPLY, context };
@@ -342,19 +341,17 @@ export async function handleIncomingMessage(storeId: string, phone: string, text
   const ai = getAiProvider();
   const parsed = await ai.parseMessage(text);
 
-  const { reply, context, image } = await resolveReply(store, storeId, customer.id, conversation.context, parsed);
+  const { reply, context, handoff } = await resolveReply(store, storeId, customer.id, conversation.context, parsed);
 
-  if (image) await saveMessage(conversation.id, "OUT", image.caption, "IMAGE");
   await saveMessage(conversation.id, "OUT", reply);
 
-  const newStatus = parsed.intent === "human_handoff" ? "WAITING_HUMAN" : conversation.status;
+  const newStatus = handoff ? "WAITING_HUMAN" : conversation.status;
   await db.conversation.update({
     where: { id: conversation.id },
     data: { context: context as Prisma.InputJsonValue, lastMessageAt: new Date(), status: newStatus },
   });
 
   const whatsapp = getWhatsAppProviderFor(resolveStoreWhatsAppConfig(store));
-  if (image) await whatsapp.sendImage(phone, image.url, image.caption);
   await whatsapp.sendText(phone, reply);
 
   return { reply, conversationId: conversation.id, status: newStatus };

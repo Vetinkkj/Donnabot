@@ -16,6 +16,26 @@ const HUMAN_HANDOFF_WORDS = ["atendente", "humano", "pessoa real", "representant
 
 const CANCEL_WORDS = ["cancelar", "cancela", "desistir", "desisto"];
 
+// Checadas antes do checkout: "adicionar ao carrinho" contém "carrinho", mas
+// nunca "finalizar"/"fechar", então não há conflito entre as listas.
+const ADD_TO_CART_WORDS = [
+  "adicionar ao carrinho",
+  "adicionar no carrinho",
+  "adiciona ao carrinho",
+  "adiciona no carrinho",
+  "colocar no carrinho",
+  "coloca no carrinho",
+  "por no carrinho",
+  "poe no carrinho",
+];
+
+// Só contam se forem a mensagem inteira — "adicionar uma bateria do XR" é
+// pedido de produto, não confirmação da peça oferecida.
+const ADD_TO_CART_EXACT_ONLY = ["adicionar", "adiciona", "adicione", "pode adicionar"];
+
+// Checadas depois do checkout, pra "fechar carrinho" não virar "ver carrinho".
+const VIEW_CART_WORDS = ["ver carrinho", "ver o carrinho", "meu carrinho", "mostrar carrinho", "mostra o carrinho", "carrinho"];
+
 const CHECKOUT_WORDS = [
   "finalizar compra",
   "finalizar pedido",
@@ -76,6 +96,8 @@ const FILLER_PHRASES = [
   "preciso",
   "quero comprar",
   "quero",
+  "adicionar",
+  "adiciona",
   "quanto ta",
   "quanto esta",
   "quanto custa",
@@ -117,7 +139,11 @@ const SYNONYMS: Record<string, string> = {
 function detectIntent(normalized: string): MessageIntent {
   if (HUMAN_HANDOFF_WORDS.some((word) => normalized.includes(word))) return "human_handoff";
   if (CANCEL_WORDS.some((word) => normalized.includes(word))) return "cancel";
+  if (ADD_TO_CART_EXACT_ONLY.includes(normalized) || ADD_TO_CART_WORDS.some((word) => normalized.includes(word))) {
+    return "add_to_cart";
+  }
   if (CHECKOUT_WORDS.some((word) => normalized.includes(word))) return "checkout";
+  if (VIEW_CART_WORDS.some((word) => normalized.includes(word))) return "view_cart";
 
   const withoutGreeting = GREETING_WORDS.reduce(
     (acc, word) => acc.replace(word, ""),
@@ -151,15 +177,18 @@ function extractQuantity(normalized: string): { quantity: number; matchedText: s
     new RegExp(`^(\\d+)\\s+(?:${CATEGORY_WORDS})\\b`),
   ];
 
-  for (const pattern of patterns) {
+  for (const [index, pattern] of patterns.entries()) {
     const match = normalized.match(pattern);
-    if (match) return { quantity: Math.max(1, parseInt(match[1], 10)), matchedText: match[0] };
+    // No 3º padrão ("3 telas ...") a categoria faz parte do match, mas é o
+    // nome da peça — só o número sai do texto.
+    if (match) return { quantity: Math.max(1, parseInt(match[1], 10)), matchedText: index === 2 ? match[1] : match[0] };
   }
 
   for (const [word, value] of Object.entries(NUMBER_WORDS)) {
     const wordPattern = new RegExp(`\\b${word}\\s+(?:${CATEGORY_WORDS}|unidades?)\\b`);
     const match = normalized.match(wordPattern);
-    if (match) return { quantity: value, matchedText: match[0] };
+    // "duas telas do 11" → remove só "duas"; a categoria continua na busca.
+    if (match) return { quantity: value, matchedText: word };
   }
 
   return { quantity: 1, matchedText: null };

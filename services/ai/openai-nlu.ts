@@ -19,6 +19,8 @@ const VALID_INTENTS: MessageIntent[] = [
   "greeting",
   "human_handoff",
   "affirmative",
+  "add_to_cart",
+  "view_cart",
   "checkout",
   "cancel",
   "product_query",
@@ -27,8 +29,10 @@ const VALID_INTENTS: MessageIntent[] = [
 
 const SYSTEM_PROMPT = `Você interpreta mensagens de clientes de uma loja de peças de celular.
 Devolva APENAS um JSON no formato {"intent": "...", "productQuery": "...", "quantity": ...}.
-- intent deve ser um de: greeting, human_handoff, affirmative, checkout, cancel, product_query, unknown.
-- checkout: o cliente quer fechar/finalizar o pedido (ex: "finalizar compra", "fechar pedido").
+- intent deve ser um de: greeting, human_handoff, affirmative, add_to_cart, view_cart, checkout, cancel, product_query, unknown.
+- add_to_cart: o cliente quer colocar no carrinho a peça que acabou de ser oferecida (ex: "adicionar ao carrinho").
+- view_cart: o cliente quer ver o que já está no carrinho (ex: "ver carrinho").
+- checkout: o cliente quer fechar/finalizar o carrinho ou pedido (ex: "finalizar carrinho", "fechar pedido").
 - cancel: o cliente quer cancelar o carrinho ou pedido atual.
 - productQuery é o texto descrevendo a peça pedida (ex: "tela iphone 11"), vazio se não houver.
 - quantity é um número inteiro (padrão 1).

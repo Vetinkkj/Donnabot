@@ -4,6 +4,7 @@ import { getCurrentStoreId } from "@/lib/current-store";
 import { getOrder, serializeOrder } from "@/services/orders";
 import { Badge } from "@/components/ui/Badge";
 import { CancelOrderButton } from "@/components/admin/CancelOrderButton";
+import { MarkOrderPaidButton } from "@/components/admin/MarkOrderPaidButton";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +85,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         </section>
       </div>
 
-      {data.status === "PENDING" && <CancelOrderButton orderId={data.id} />}
+      {data.status === "PENDING" && (
+        <div className="flex flex-wrap items-start gap-3">
+          <MarkOrderPaidButton orderId={data.id} />
+          <CancelOrderButton orderId={data.id} />
+        </div>
+      )}
     </div>
   );
 }

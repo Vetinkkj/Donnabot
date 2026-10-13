@@ -2,6 +2,8 @@ export type MessageIntent =
   | "greeting"
   | "human_handoff"
   | "affirmative"
+  | "add_to_cart"
+  | "view_cart"
   | "checkout"
   | "cancel"
   | "product_query"

@@ -157,11 +157,16 @@ curl "http://localhost:3000/api/mock/whatsapp?phone=5511999998888"
 Frases que a Dona já entende: "tem tela de onze?", "vocês têm display iphone 11?", "quanto tá a bateria do XR?", "quero 3 telas de iphone 13", "não encontrei" para peças fora do catálogo, "atendente" para transferir a conversa para um humano (o bot fica em silêncio e a conversa aparece em **Atendimento** no painel — veja a seção "Atendimento humano" abaixo).
 
 Depois que a Dona mostrar um produto, você pode:
-- **"sim"** — adiciona ao carrinho
-- pedir outra peça — adiciona outro item ao carrinho
-- **"finalizar"** — fecha o pedido (cria o registro `PENDING` no banco) e mostra o resumo
-- **"sim"** de novo — gera a cobrança PIX (mock)
+- **"adicionar ao carrinho"** (ou "sim") — adiciona a peça ao carrinho
+- pedir outra peça — a Dona mostra e você adiciona mais um item
+- **"ver carrinho"** — mostra o que já está no carrinho e o total
+- **"finalizar carrinho"** — fecha o pedido (cria o registro `PENDING` no banco), mostra o resumo e **transfere a conversa para um atendente**, que manda o link de pagamento pelo painel (em **Atendimento**)
 - **"cancelar"** — cancela o carrinho atual ou o pedido pendente
+
+A Dona não gera mais cobrança PIX sozinha no fim da conversa — o pagamento é
+enviado pelo atendente. O fluxo de PIX (`services/payment`, `/mock-payment`,
+webhook de pagamento) continua no código para quando quiser voltar a
+automatizar.
 
 ## Testando o pagamento PIX
 
