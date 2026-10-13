@@ -38,11 +38,34 @@ type MetaWebhookPayload = {
       value?: {
         metadata?: { phone_number_id?: string };
         contacts?: Array<{ profile?: { name?: string }; wa_id?: string }>;
-        messages?: Array<{ from?: string; type?: string; text?: { body?: string } }>;
+        messages?: Array<{
+          from?: string;
+          type?: string;
+          text?: { body?: string };
+          interactive?: { type?: string; button_reply?: { id?: string; title?: string } };
+          button?: { text?: string; payload?: string };
+        }>;
       };
     }>;
   }>;
 };
+
+type MetaIncomingMessage = NonNullable<
+  NonNullable<NonNullable<NonNullable<MetaWebhookPayload["entry"]>[number]["changes"]>[number]["value"]>["messages"]
+>[number];
+
+/**
+ * Texto que a Donna deve interpretar. Toque em botão de resposta rápida chega
+ * como `interactive.button_reply` — usamos o `id`, que é a frase que o NLU já
+ * entende (ex: "adicionar ao carrinho"); `button` é o equivalente vindo de
+ * template. Outros tipos (áudio, imagem...) são ignorados.
+ */
+function extractMessageText(message: MetaIncomingMessage): string | undefined {
+  if (message.type === "text") return message.text?.body;
+  if (message.type === "interactive") return message.interactive?.button_reply?.id ?? message.interactive?.button_reply?.title;
+  if (message.type === "button") return message.button?.payload ?? message.button?.text;
+  return undefined;
+}
 
 function isSignatureValid(rawBody: string, signatureHeader: string | null): boolean {
   const secret = process.env.WHATSAPP_APP_SECRET;
@@ -77,10 +100,11 @@ export async function POST(request: NextRequest) {
         const contacts = change.value?.contacts ?? [];
 
         for (const message of messages) {
-          if (message.type !== "text" || !message.from || !message.text?.body) continue;
+          const text = extractMessageText(message);
+          if (!message.from || !text) continue;
 
           const contact = contacts.find((c) => c.wa_id === message.from);
-          await handleIncomingMessage(storeId, message.from, message.text.body, contact?.profile?.name);
+          await handleIncomingMessage(storeId, message.from, text, contact?.profile?.name);
         }
       }
     }

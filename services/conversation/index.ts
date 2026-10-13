@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getAiProvider } from "@/services/ai";
 import type { ParsedMessage } from "@/services/ai";
-import { getWhatsAppProviderFor } from "@/services/whatsapp";
+import { getWhatsAppProviderFor, type WhatsAppButton } from "@/services/whatsapp";
 import { getCategoryEmoji, getProduct, searchProduct, type SerializedProduct } from "@/services/stock";
 import { cancelOrder, createOrderFromCart } from "@/services/orders";
 import { isStoreOperational, resolveStoreWhatsAppConfig } from "@/services/store";
@@ -73,7 +73,7 @@ function buildProductReply(product: SerializedProduct, requestedQuantity: number
     return [
       `Temos somente ${product.stockQuantity} unidades disponíveis.`,
       `📦 Estoque atual: ${product.stockQuantity}`,
-      `Se quiser levar as ${product.stockQuantity} unidades, digite "adicionar ao carrinho" 🛒`,
+      `Se quiser levar as ${product.stockQuantity} unidades, toque em "Adicionar" 👇`,
     ].join("\n");
   }
 
@@ -88,7 +88,7 @@ function buildProductReply(product: SerializedProduct, requestedQuantity: number
   }
 
   lines.push(`📦 Estoque: ${product.stockQuantity} unidades`);
-  lines.push('Para levar, digite "adicionar ao carrinho" 🛒');
+  lines.push('Para levar, toque em "Adicionar" 👇');
 
   return lines.join("\n");
 }
@@ -126,7 +126,7 @@ function buildCartReply(cart: CartItem[]): string {
     lines.push(`${emoji} ${item.name} — ${item.quantity}x ${currency.format(item.unitPrice)} = ${currency.format(subtotal)}`);
   }
   lines.push(`💰 Total: ${currency.format(cartTotal(cart))}`);
-  lines.push('Quer mais alguma peça? É só me dizer qual. Para fechar a compra, digite "finalizar carrinho".');
+  lines.push('Quer mais alguma peça? É só me dizer qual. Para fechar a compra, toque em "Finalizar carrinho" 👇');
   return lines.join("\n");
 }
 
@@ -172,11 +172,19 @@ const NOTHING_TO_ADD_REPLY =
 
 const NOTHING_TO_CANCEL_REPLY = "Não tem nada pra cancelar no momento 🙂";
 
+// Botões de resposta rápida do WhatsApp (máx. 3 por mensagem, título até 20
+// caracteres). O `id` volta no webhook quando o cliente toca e é tratado como
+// se ele tivesse digitado esse texto — por isso é uma frase que o NLU entende.
+const ADD_TO_CART_BUTTON: WhatsAppButton = { id: "adicionar ao carrinho", label: "🛒 Adicionar" };
+const CHECKOUT_BUTTON: WhatsAppButton = { id: "finalizar carrinho", label: "Finalizar carrinho" };
+const HUMAN_BUTTON: WhatsAppButton = { id: "atendente", label: "Falar c/ atendente" };
+
 type ResolvedReply = {
   reply: string;
   context: ConversationContext;
   /** true = conversa vai para a fila "Aguardando atendente" e a Donna para de responder. */
   handoff?: boolean;
+  buttons?: WhatsAppButton[];
 };
 
 /** Pedido do contexto ainda aguardando pagamento? (pode ter sido pago/cancelado pelo atendente no painel) */
@@ -204,7 +212,11 @@ async function addLastProductToCart(storeId: string, context: ConversationContex
     quantity,
   });
 
-  return { reply: `✅ Adicionado ao carrinho!\n${buildCartReply(cart)}`, context: { ...context, cart, lastProduct: undefined } };
+  return {
+    reply: `✅ Adicionado ao carrinho!\n${buildCartReply(cart)}`,
+    context: { ...context, cart, lastProduct: undefined },
+    buttons: [CHECKOUT_BUTTON],
+  };
 }
 
 async function resolveReply(
@@ -244,7 +256,8 @@ async function resolveReply(
 
   if (parsed.intent === "view_cart") {
     const cart = context.cart ?? [];
-    return { reply: cart.length > 0 ? buildCartReply(cart) : EMPTY_CART_REPLY, context };
+    if (cart.length === 0) return { reply: EMPTY_CART_REPLY, context };
+    return { reply: buildCartReply(cart), context, buttons: [CHECKOUT_BUTTON] };
   }
 
   if (parsed.intent === "checkout") {
@@ -309,7 +322,7 @@ async function resolveReply(
     const result = searchText ? await searchProduct(storeId, searchText) : ({ kind: "not_found" } as const);
 
     if (result.kind === "not_found") {
-      return { reply: NOT_FOUND_REPLY, context: { ...context, lastProduct: undefined } };
+      return { reply: NOT_FOUND_REPLY, context: { ...context, lastProduct: undefined }, buttons: [HUMAN_BUTTON] };
     }
 
     if (result.kind === "ambiguous") {
@@ -322,10 +335,18 @@ async function resolveReply(
     const lastProduct =
       product.stockQuantity > 0 ? { id: product.id, name: product.name, quantity: offeredQuantity } : undefined;
 
-    return { reply, context: { ...context, lastProduct } };
+    return { reply, context: { ...context, lastProduct }, buttons: [lastProduct ? ADD_TO_CART_BUTTON : HUMAN_BUTTON] };
   }
 
   return { reply: FALLBACK_REPLY, context };
+}
+
+// Corpo de mensagem interativa da Meta aceita no máximo 1024 caracteres.
+const INTERACTIVE_BODY_LIMIT = 1024;
+
+/** Texto salvo no histórico: a resposta + os botões oferecidos, pro atendente ver o que o cliente recebeu. */
+function withButtonLabels(reply: string, buttons: WhatsAppButton[]): string {
+  return `${reply}\n${buttons.map((button) => `[${button.label}]`).join(" ")}`;
 }
 
 export async function handleIncomingMessage(storeId: string, phone: string, text: string, name?: string) {
@@ -354,9 +375,19 @@ export async function handleIncomingMessage(storeId: string, phone: string, text
   const ai = getAiProvider();
   const parsed = await ai.parseMessage(text);
 
-  const { reply, context, handoff } = await resolveReply(store, storeId, customer.id, conversation.context, parsed);
+  const { reply, context, handoff, buttons } = await resolveReply(
+    store,
+    storeId,
+    customer.id,
+    conversation.context,
+    parsed
+  );
 
-  await saveMessage(conversation.id, "OUT", reply);
+  if (buttons?.length) {
+    await saveMessage(conversation.id, "OUT", withButtonLabels(reply, buttons), "BUTTONS");
+  } else {
+    await saveMessage(conversation.id, "OUT", reply);
+  }
 
   const newStatus = handoff ? "WAITING_HUMAN" : conversation.status;
   await db.conversation.update({
@@ -365,7 +396,16 @@ export async function handleIncomingMessage(storeId: string, phone: string, text
   });
 
   const whatsapp = getWhatsAppProviderFor(resolveStoreWhatsAppConfig(store));
-  await whatsapp.sendText(phone, reply);
+  if (!buttons?.length) {
+    await whatsapp.sendText(phone, reply);
+  } else if (reply.length <= INTERACTIVE_BODY_LIMIT) {
+    await whatsapp.sendButtons(phone, reply, buttons);
+  } else {
+    // Carrinho muito grande pra caber no corpo dos botões: manda o texto
+    // inteiro e os botões numa mensagem curta logo depois.
+    await whatsapp.sendText(phone, reply);
+    await whatsapp.sendButtons(phone, "Escolha uma opção 👇", buttons);
+  }
 
   return { reply, conversationId: conversation.id, status: newStatus };
 }
