@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { getAiProvider } from "@/services/ai";
 import type { ParsedMessage } from "@/services/ai";
 import { getWhatsAppProviderFor } from "@/services/whatsapp";
-import { findBestProductMatch, getCategoryEmoji, getProduct, type SerializedProduct } from "@/services/stock";
+import { getCategoryEmoji, getProduct, searchProduct, type SerializedProduct } from "@/services/stock";
 import { cancelOrder, createOrderFromCart } from "@/services/orders";
 import { isStoreOperational, resolveStoreWhatsAppConfig } from "@/services/store";
 
@@ -90,6 +90,18 @@ function buildProductReply(product: SerializedProduct, requestedQuantity: number
   lines.push(`📦 Estoque: ${product.stockQuantity} unidades`);
   lines.push('Para levar, digite "adicionar ao carrinho" 🛒');
 
+  return lines.join("\n");
+}
+
+/** Vários produtos servem pro que o cliente disse — lista e pergunta o modelo em vez de chutar. */
+function buildAmbiguousReply(options: SerializedProduct[]): string {
+  const lines = ["Temos algumas opções 🙂"];
+  for (const option of options) {
+    const emoji = getCategoryEmoji(option.categoryName);
+    const stock = option.stockQuantity > 0 ? currency.format(option.price) : "sem estoque";
+    lines.push(`${emoji} ${option.name} — ${stock}`);
+  }
+  lines.push("Qual é o modelo do seu aparelho?");
   return lines.join("\n");
 }
 
@@ -293,17 +305,18 @@ async function resolveReply(
   if (parsed.intent === "product_query") {
     const query = parsed.productQuery.trim();
 
-    let product: SerializedProduct | null = null;
-    if (query.length >= 2) {
-      product = await findBestProductMatch(storeId, query);
-    } else if (context.lastProduct) {
-      product = await findBestProductMatch(storeId, context.lastProduct.name);
-    }
+    const searchText = query.length >= 2 ? query : context.lastProduct?.name;
+    const result = searchText ? await searchProduct(storeId, searchText) : ({ kind: "not_found" } as const);
 
-    if (!product) {
+    if (result.kind === "not_found") {
       return { reply: NOT_FOUND_REPLY, context: { ...context, lastProduct: undefined } };
     }
 
+    if (result.kind === "ambiguous") {
+      return { reply: buildAmbiguousReply(result.options), context: { ...context, lastProduct: undefined } };
+    }
+
+    const product = result.product;
     const reply = buildProductReply(product, parsed.quantity);
     const offeredQuantity = Math.min(parsed.quantity, product.stockQuantity);
     const lastProduct =

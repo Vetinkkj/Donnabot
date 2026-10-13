@@ -173,40 +173,169 @@ export function getCategoryEmoji(categoryName?: string | null): string {
   return CATEGORY_EMOJI[normalizedTokens(categoryName).join(" ")] ?? "🔧";
 }
 
+// Marcas que o cliente pode citar mesmo sem a loja ter nenhum produto delas —
+// citar uma marca que não temos deve dar "não encontrei", nunca a peça de
+// outra marca.
+const KNOWN_BRANDS = [
+  "apple",
+  "iphone",
+  "samsung",
+  "galaxy",
+  "motorola",
+  "moto",
+  "xiaomi",
+  "redmi",
+  "poco",
+  "lg",
+  "asus",
+  "zenfone",
+  "nokia",
+  "lenovo",
+  "realme",
+  "oppo",
+  "huawei",
+  "oneplus",
+  "positivo",
+  "multilaser",
+  "infinix",
+  "tecno",
+];
+
+/** Distância de edição (Levenshtein) — pra tolerar erro de digitação tipo "sansumg". */
+function editDistance(a: string, b: string): number {
+  const previous = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let diagonal = previous[0];
+    previous[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const above = previous[j];
+      previous[j] = Math.min(previous[j] + 1, previous[j - 1] + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diagonal = above;
+    }
+  }
+  return previous[b.length];
+}
+
+function maxTypos(token: string): number {
+  if (/\d/.test(token)) return 0; // número de modelo tem que bater exato ("11" ≠ "12")
+  if (token.length >= 6) return 2;
+  if (token.length >= 4) return 1;
+  return 0;
+}
+
+/** Troca um token com erro de digitação pela palavra conhecida mais próxima (ou mantém, se nenhuma for próxima). */
+function correctTypo(token: string, vocabulary: Set<string>): string {
+  if (vocabulary.has(token)) return token;
+  const limit = maxTypos(token);
+  if (limit === 0) return token;
+
+  let best: { word: string; distance: number } | null = null;
+  for (const word of vocabulary) {
+    if (Math.abs(word.length - token.length) > limit) continue;
+    const distance = editDistance(token, word);
+    if (distance <= limit && (!best || distance < best.distance)) best = { word, distance };
+  }
+  return best?.word ?? token;
+}
+
+function tokenMatches(queryToken: string, productTokens: Set<string>): boolean {
+  if (productTokens.has(queryToken)) return true;
+  if (/\d/.test(queryToken) || queryToken.length < 4) return false;
+  // plural/sufixo simples: "telas" x "tela", "conector" x "conectores"
+  for (const token of productTokens) {
+    if (token.length >= 4 && (token.startsWith(queryToken) || queryToken.startsWith(token))) return true;
+  }
+  return false;
+}
+
+type IndexedProduct = {
+  product: ProductWithCategory;
+  /** nome/marca/modelo/compatibilidade/categoria — o que identifica a peça */
+  identity: Set<string>;
+  /** identity + descrição — só pra pontuar, nunca pra exigir */
+  all: Set<string>;
+  nameLength: number;
+};
+
+export type ProductSearchResult =
+  | { kind: "found"; product: SerializedProduct }
+  | { kind: "ambiguous"; options: SerializedProduct[] }
+  | { kind: "not_found" };
+
 /**
  * Busca "tolerante" de produto por texto livre (o que o cliente escreveu no
- * WhatsApp, já limpo pela camada de IA). Não usa IA para decidir o produto —
- * apenas compara tokens de texto contra nome/marca/modelo/compatibilidade/
- * categoria/descrição de cada produto ativo da loja e escolhe o de maior
- * pontuação. Suficiente para um catálogo pequeno/médio; um catálogo muito
- * grande migraria isso para uma busca full-text no banco (ex: Postgres
- * `tsvector` ou Meilisearch/Algolia).
+ * WhatsApp, já limpo pela camada de IA). Não usa IA para decidir o produto.
+ *
+ * Regras:
+ * - Marca, modelo (qualquer palavra com número, ou que aparece no campo
+ *   modelo/marca de algum produto) e tipo de peça (categoria) citados pelo
+ *   cliente são OBRIGATÓRIOS — "bateria samsung" nunca devolve bateria de
+ *   iPhone; se não tiver, é "não encontrado".
+ * - Erros de digitação leves são corrigidos contra o vocabulário do catálogo
+ *   + marcas conhecidas ("sansumg" → "samsung"). Números nunca são corrigidos.
+ * - Se mais de um produto empata no topo ("tem bateria?", "tela de iphone"
+ *   com vários modelos), devolve "ambiguous" pra Donna perguntar o modelo.
+ *
+ * Suficiente para um catálogo pequeno/médio; um catálogo muito grande
+ * migraria isso para busca full-text no banco (Postgres `tsvector`, Meilisearch...).
  */
-export async function findBestProductMatch(storeId: string, queryText: string) {
-  const queryTokens = normalizedTokens(queryText);
-  if (queryTokens.length === 0) return null;
+export function matchProducts(products: ProductWithCategory[], queryText: string): ProductSearchResult {
+  const indexed: IndexedProduct[] = products.map((product) => {
+    const identityTokens = normalizedTokens(
+      [product.name, product.brand, product.model, product.compatibility, product.category?.name].filter(Boolean).join(" ")
+    );
+    const descriptionTokens = product.description ? normalizedTokens(product.description) : [];
+    return {
+      product,
+      identity: new Set(identityTokens),
+      all: new Set([...identityTokens, ...descriptionTokens]),
+      nameLength: normalizedTokens(product.name).length,
+    };
+  });
 
+  const categoryWords = new Set(products.flatMap((p) => (p.category ? normalizedTokens(p.category.name) : [])));
+  const identifierWords = new Set([
+    ...KNOWN_BRANDS,
+    ...products.flatMap((p) => normalizedTokens([p.brand, p.model].filter(Boolean).join(" "))),
+  ]);
+  const vocabulary = new Set([...KNOWN_BRANDS, ...indexed.flatMap((item) => [...item.all])]);
+
+  const queryTokens = normalizedTokens(queryText).map((token) => correctTypo(token, vocabulary));
+  if (queryTokens.length === 0) return { kind: "not_found" };
+
+  const isIdentifier = (token: string) => /\d/.test(token) || identifierWords.has(token);
+  const isCategory = (token: string) => [...categoryWords].some((word) => tokenMatches(token, new Set([word])));
+  const required = queryTokens.filter((token) => isIdentifier(token) || isCategory(token));
+
+  const candidates = indexed
+    .filter((item) => required.every((token) => tokenMatches(token, item.identity)))
+    .map((item) => ({ item, score: queryTokens.filter((token) => tokenMatches(token, item.all)).length }))
+    .filter(({ score }) => score > 0)
+    // mais palavras batendo primeiro; empate → nome mais curto ("iPhone 11" antes de "iPhone 11 Pro")
+    .sort((a, b) => b.score - a.score || a.item.nameLength - b.item.nameLength);
+
+  if (candidates.length === 0) return { kind: "not_found" };
+
+  // Empate no topo = o cliente não disse o suficiente pra escolher ("bateria",
+  // "tela de iphone" com vários modelos) → Donna pergunta em vez de chutar.
+  const tied = candidates.filter(({ score }) => score === candidates[0].score);
+  if (tied.length > 1) {
+    const options = tied
+      .slice(0, 5)
+      .map(({ item }) => serializeProduct(item.product))
+      .sort((a, b) => Number(b.stockQuantity > 0) - Number(a.stockQuantity > 0));
+    return { kind: "ambiguous", options };
+  }
+
+  return { kind: "found", product: serializeProduct(candidates[0].item.product) };
+}
+
+export async function searchProduct(storeId: string, queryText: string): Promise<ProductSearchResult> {
   const products = await db.product.findMany({
     where: { storeId, active: true },
     include: { category: true },
   });
-
-  let best: { product: ProductWithCategory; score: number } | null = null;
-
-  for (const product of products) {
-    const searchable = normalizedTokens(
-      [product.name, product.brand, product.model, product.compatibility, product.category?.name, product.description]
-        .filter(Boolean)
-        .join(" ")
-    ).join(" ");
-
-    const score = queryTokens.filter((token) => searchable.includes(token)).length;
-    if (score > 0 && (!best || score > best.score)) {
-      best = { product, score };
-    }
-  }
-
-  return best ? serializeProduct(best.product) : null;
+  return matchProducts(products, queryText);
 }
 
 // ---------------------------------------------------------------------------
