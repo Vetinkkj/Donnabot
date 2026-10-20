@@ -349,6 +349,32 @@ function withButtonLabels(reply: string, buttons: WhatsAppButton[]): string {
   return `${reply}\n${buttons.map((button) => `[${button.label}]`).join(" ")}`;
 }
 
+// Tarefa 6 do plano: depois desse tempo sem ninguém da loja responder, a
+// Donna volta a atender quando o cliente escrever de novo. (Ela não manda
+// mensagem sozinha no exato minuto — isso exigiria um cron frequente, que o
+// plano grátis da Vercel não tem.)
+const HUMAN_HANDOFF_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+
+const RESUMED_AFTER_TIMEOUT_PREFIX = "Desculpe a demora 🙏 Nossa equipe não conseguiu te responder ainda, então eu sigo te ajudando por aqui.";
+
+/**
+ * Conversa fora do bot e sem resposta da loja há mais de 2h? Vale para
+ * "Aguardando atendente" (ninguém assumiu) e para a pausa automática da
+ * Coexistência (lojista respondeu pelo celular e sumiu). Quando um atendente
+ * assumiu pelo painel (assignedUserId), a conversa é dele até encerrar.
+ */
+async function isHumanHandoffAbandoned(conversation: { id: string; status: string; assignedUserId: string | null }) {
+  if (conversation.status === "HUMAN" && conversation.assignedUserId) return false;
+
+  const lastStoreMessage = await db.message.findFirst({
+    where: { conversationId: conversation.id, direction: "OUT" },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  if (!lastStoreMessage) return false;
+  return Date.now() - lastStoreMessage.createdAt.getTime() > HUMAN_HANDOFF_TIMEOUT_MS;
+}
+
 export async function handleIncomingMessage(storeId: string, phone: string, text: string, name?: string) {
   const store = await db.store.findUniqueOrThrow({ where: { id: storeId } });
   const customer = await getOrCreateCustomer(storeId, phone, name);
@@ -364,24 +390,27 @@ export async function handleIncomingMessage(storeId: string, phone: string, text
     return { reply: null, conversationId: conversation.id, status: conversation.status };
   }
 
+  let resumedAfterTimeout = false;
   if (conversation.status !== "BOT") {
-    await db.conversation.update({
-      where: { id: conversation.id },
-      data: { lastMessageAt: new Date() },
-    });
-    return { reply: null, conversationId: conversation.id, status: conversation.status };
+    if (!(await isHumanHandoffAbandoned(conversation))) {
+      await db.conversation.update({
+        where: { id: conversation.id },
+        data: { lastMessageAt: new Date() },
+      });
+      return { reply: null, conversationId: conversation.id, status: conversation.status };
+    }
+    // Ninguém da loja respondeu a tempo: a Donna volta a atender esse cliente.
+    await db.conversation.update({ where: { id: conversation.id }, data: { status: "BOT", assignedUserId: null } });
+    conversation.status = "BOT";
+    resumedAfterTimeout = true;
   }
 
   const ai = getAiProvider();
   const parsed = await ai.parseMessage(text);
 
-  const { reply, context, handoff, buttons } = await resolveReply(
-    store,
-    storeId,
-    customer.id,
-    conversation.context,
-    parsed
-  );
+  const resolved = await resolveReply(store, storeId, customer.id, conversation.context, parsed);
+  const { context, handoff, buttons } = resolved;
+  const reply = resumedAfterTimeout ? `${RESUMED_AFTER_TIMEOUT_PREFIX}\n\n${resolved.reply}` : resolved.reply;
 
   if (buttons?.length) {
     await saveMessage(conversation.id, "OUT", withButtonLabels(reply, buttons), "BUTTONS");

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { isStoreOperational } from "@/services/store";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { LogoutButton } from "@/components/admin/LogoutButton";
+import { WaitingCustomerAlert } from "@/components/admin/WaitingCustomerAlert";
 import { BRAND_NAME, CONTACT_EMAIL, CONTACT_WHATSAPP } from "@/lib/marketing-config";
 
 const STATUS_MESSAGE: Record<string, string> = {
@@ -70,6 +71,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         isPlatformAdmin={session?.user?.isPlatformAdmin}
       />
       <main className="flex-1 overflow-x-auto bg-zinc-50 p-4 dark:bg-black md:p-8">{children}</main>
+      <WaitingCustomerAlert />
     </div>
   );
 }
