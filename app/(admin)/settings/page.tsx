@@ -1,5 +1,6 @@
 import { getCurrentStoreId } from "@/lib/current-store";
 import { getStoreIntegrationsStatus, getStoreSettings } from "@/services/store";
+import { ChangePasswordForm } from "@/components/admin/ChangePasswordForm";
 import { SettingsForm } from "@/components/admin/SettingsForm";
 import { WhatsAppIntegrationForm } from "@/components/admin/WhatsAppIntegrationForm";
 import { Badge } from "@/components/ui/Badge";
@@ -41,6 +42,8 @@ export default async function SettingsPage() {
           defaultMinStock: store.defaultMinStock,
         }}
       />
+
+      <ChangePasswordForm />
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">Padrão do sistema (todas as lojas)</h2>

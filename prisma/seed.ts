@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -23,7 +24,12 @@ async function main() {
     create: { id: "store-demo", ...storeData, status: "ACTIVE" },
   });
 
-  const passwordHash = await bcrypt.hash("admin123", 10);
+  // Nunca uma senha fixa no código: ou vem de SEED_ADMIN_PASSWORD, ou é
+  // gerada aqui e mostrada uma única vez no fim do seed. Só vale para um
+  // usuário admin novo — se ele já existe, a senha dele não é tocada.
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || randomBytes(9).toString("base64url");
+  const passwordHash = await bcrypt.hash(adminPassword, 10);
+  const adminAlreadyExists = await db.user.findUnique({ where: { email: "admin@botloja.dev" } });
   await db.user.upsert({
     where: { email: "admin@botloja.dev" },
     // isPlatformAdmin também no update: se esse usuário já existia de um
@@ -171,7 +177,13 @@ async function main() {
   }
 
   console.log("Seed concluído.");
-  console.log(`Login admin: admin@botloja.dev / senha: admin123`);
+  if (adminAlreadyExists) {
+    console.log("Usuário admin@botloja.dev já existia — senha mantida.");
+  } else if (process.env.SEED_ADMIN_PASSWORD) {
+    console.log("Login admin: admin@botloja.dev / senha: a definida em SEED_ADMIN_PASSWORD");
+  } else {
+    console.log(`Login admin: admin@botloja.dev / senha gerada: ${adminPassword} (anote agora, não será mostrada de novo)`);
+  }
 }
 
 main()

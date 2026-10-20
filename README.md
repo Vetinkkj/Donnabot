@@ -97,7 +97,9 @@ trocar de um pro outro é só mudar uma variável de ambiente
 
    Login do painel admin (acesse em `/login`):
    - **E-mail:** `admin@botloja.dev`
-   - **Senha:** `admin123`
+   - **Senha:** gerada aleatoriamente e mostrada uma única vez no fim do
+     `db:seed` (ou defina `SEED_ADMIN_PASSWORD` antes de rodar). Depois de
+     entrar, troque em **Configurações → Alterar senha**.
 
 6. Rode o projeto:
 
