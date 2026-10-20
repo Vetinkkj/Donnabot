@@ -164,7 +164,7 @@ export function ProductForm({
           required
         />
         <Input
-          label="URL da imagem"
+          label="URL da foto (a Donna envia para o cliente no WhatsApp)"
           value={values.imageUrl}
           onChange={(e) => update("imageUrl", e.target.value)}
           error={fieldErrors?.imageUrl}

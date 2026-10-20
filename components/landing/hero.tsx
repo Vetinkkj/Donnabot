@@ -10,7 +10,7 @@ const links = [
   ["Como funciona", "#como-funciona"],
   ["Funcionalidades", "#funcionalidades"],
   ["Demonstração", "#demonstracao"],
-  ["Avaliações", "#avaliacoes"],
+  ["Diferenciais", "#diferenciais"],
   ["Planos", "#planos"],
 ] as const;
 
@@ -104,13 +104,12 @@ function HeroMockup() {
         <Window title="WhatsApp • Sua loja" className="relative ml-auto w-[88%] sm:w-[70%] [transform:translateZ(40px)]">
           <ChatHeader name="Marina" />
           <div className="space-y-2.5 p-4">
-            <Bubble from="client">Oi! Vocês têm capinha pro iPhone 13?</Bubble>
-            <Bubble from="donna" delay={400}>Oi, Marina! Temos sim. Separei duas opções pro iPhone 13 👇</Bubble>
-            <div className="flex justify-end gap-2 animate-msg-in" style={{ animationDelay: "800ms" }}>
-              <ProductCard name="Capinha Silicone" price="R$ 39,90" i={0} />
-              <ProductCard name="Capinha Anti-impacto" price="R$ 49,90" i={1} />
+            <Bubble from="client">Oi! Tem capinha de silicone pro iPhone 13?</Bubble>
+            <div className="flex justify-end animate-msg-in" style={{ animationDelay: "400ms" }}>
+              <ProductCard name="Capinha Silicone iPhone 13" price="R$ 39,90" i={0} />
             </div>
-            <Bubble from="client" delay={1200}>Amei a Silicone! Tem na cor preta?</Bubble>
+            <Bubble from="donna" delay={800}>Tem sim, Marina! 📦 8 em estoque. Para levar, toque em &quot;Adicionar&quot; 👇</Bubble>
+            <Bubble from="client" delay={1200}>🛒 Adicionar</Bubble>
             <Typing />
           </div>
         </Window>

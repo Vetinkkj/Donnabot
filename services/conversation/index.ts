@@ -101,7 +101,7 @@ function buildAmbiguousReply(options: SerializedProduct[]): string {
     const stock = option.stockQuantity > 0 ? currency.format(option.price) : "sem estoque";
     lines.push(`${emoji} ${option.name} — ${stock}`);
   }
-  lines.push("Qual é o modelo do seu aparelho?");
+  lines.push("Qual delas você quer? Se for para outro aparelho, me diga o modelo.");
   return lines.join("\n");
 }
 
@@ -185,6 +185,8 @@ type ResolvedReply = {
   /** true = conversa vai para a fila "Aguardando atendente" e a Donna para de responder. */
   handoff?: boolean;
   buttons?: WhatsAppButton[];
+  /** Foto da peça (Produto → "URL da imagem"), enviada antes do texto. */
+  image?: { url: string; caption: string };
 };
 
 /** Pedido do contexto ainda aguardando pagamento? (pode ter sido pago/cancelado pelo atendente no painel) */
@@ -335,7 +337,17 @@ async function resolveReply(
     const lastProduct =
       product.stockQuantity > 0 ? { id: product.id, name: product.name, quantity: offeredQuantity } : undefined;
 
-    return { reply, context: { ...context, lastProduct }, buttons: [lastProduct ? ADD_TO_CART_BUTTON : HUMAN_BUTTON] };
+    const image =
+      lastProduct && product.imageUrl
+        ? { url: product.imageUrl, caption: `${product.name} — ${currency.format(product.price)}` }
+        : undefined;
+
+    return {
+      reply,
+      context: { ...context, lastProduct },
+      buttons: [lastProduct ? ADD_TO_CART_BUTTON : HUMAN_BUTTON],
+      image,
+    };
   }
 
   return { reply: FALLBACK_REPLY, context };
@@ -409,9 +421,10 @@ export async function handleIncomingMessage(storeId: string, phone: string, text
   const parsed = await ai.parseMessage(text);
 
   const resolved = await resolveReply(store, storeId, customer.id, conversation.context, parsed);
-  const { context, handoff, buttons } = resolved;
+  const { context, handoff, buttons, image } = resolved;
   const reply = resumedAfterTimeout ? `${RESUMED_AFTER_TIMEOUT_PREFIX}\n\n${resolved.reply}` : resolved.reply;
 
+  if (image) await saveMessage(conversation.id, "OUT", `📷 ${image.caption}\n${image.url}`, "IMAGE");
   if (buttons?.length) {
     await saveMessage(conversation.id, "OUT", withButtonLabels(reply, buttons), "BUTTONS");
   } else {
@@ -425,6 +438,14 @@ export async function handleIncomingMessage(storeId: string, phone: string, text
   });
 
   const whatsapp = getWhatsAppProviderFor(resolveStoreWhatsAppConfig(store));
+  if (image) {
+    // Foto com link quebrado/privado não pode impedir a resposta em texto.
+    try {
+      await whatsapp.sendImage(phone, image.url, image.caption);
+    } catch (error) {
+      console.error("[handleIncomingMessage] falha ao enviar foto do produto", image.url, error);
+    }
+  }
   if (!buttons?.length) {
     await whatsapp.sendText(phone, reply);
   } else if (reply.length <= INTERACTIVE_BODY_LIMIT) {

@@ -24,9 +24,9 @@ const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "
 
 const benefits = [
   { icon: MessageCircle, t: "Atendimento no WhatsApp", d: "A Donna responde seus clientes no canal onde eles já conversam com a sua loja." },
-  { icon: LayoutGrid, t: "Produtos bem apresentados", d: "Fotos, nomes e preços organizados direto na conversa." },
+  { icon: LayoutGrid, t: "Produtos bem apresentados", d: "Foto, nome, preço e estoque de cada peça direto na conversa." },
   { icon: Clock, t: "Respostas mais ágeis", d: "Menos cliente esperando enquanto você cuida da loja." },
-  { icon: ShoppingCart, t: "Apoio às vendas", d: "A conversa segue do interesse até a escolha do produto." },
+  { icon: ShoppingCart, t: "Apoio às vendas", d: "A Donna monta o carrinho e entrega o pedido pronto para sua equipe cobrar." },
   { icon: Repeat, t: "Atendimento consistente", d: "O mesmo cuidado em cada conversa, todos os dias." },
   { icon: Wrench, t: "Configuração assistida", d: "Nossa equipe ajuda a conectar o WhatsApp e cadastrar os produtos." },
 ];
@@ -109,7 +109,7 @@ const trust = [
 
 export function Trust() {
   return (
-    <section id="avaliacoes" className="py-24 sm:py-32">
+    <section id="diferenciais" className="py-24 sm:py-32">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
         <SectionHead
           eyebrow="Por que a Donnabot"
@@ -144,7 +144,11 @@ const faq: [string, string][] = [
   ["Como conecto meu WhatsApp?", "Depois do cadastro e da ativação do plano, nossa equipe te ajuda a conectar o número da loja."],
   [
     "Preciso cadastrar meus produtos?",
-    "Sim, a Donna precisa conhecer seus produtos — capinhas, carregadores, películas, fones e mais — para apresentá-los. A equipe ajuda você nesse cadastro.",
+    "Sim, a Donna precisa conhecer seus produtos — capinhas, carregadores, películas, fones e mais — para apresentá-los. Dá para importar tudo de uma planilha e colocar a foto de cada peça, que a Donna envia para o cliente. A equipe ajuda você nesse cadastro.",
+  ],
+  [
+    "Como o cliente paga?",
+    "Quando o cliente finaliza o carrinho, a Donna passa a conversa para alguém da sua loja, com o pedido já montado. Sua equipe envia o link ou a chave de pagamento e marca o pedido como pago no painel — o estoque é atualizado na hora.",
   ],
   [
     `Como funciona o teste grátis de ${PRICING.trialDays} dias?`,

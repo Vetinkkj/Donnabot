@@ -7,20 +7,35 @@ import { SectionHead } from "./primitives";
 import { Bubble, ChatHeader, ProductCard, Window } from "./mockups";
 
 const tabs = [
-  { id: "atendimento", label: "Atendimento automatizado", icon: MessagesSquare, desc: "O cliente pergunta, a Donna responde com naturalidade e mantém a conversa andando." },
-  { id: "produtos", label: "Apresentação de produtos", icon: ShoppingBag, desc: "Produtos com foto, nome e preço direto na conversa, com opções para o cliente seguir." },
-  { id: "gestao", label: "Experiência de gestão", icon: LayoutDashboard, desc: "Uma visão organizada das conversas, do status de cada atendimento e dos produtos." },
+  { id: "atendimento", label: "Atendimento automatizado", icon: MessagesSquare, desc: "O cliente pergunta, a Donna consulta seu estoque, monta o carrinho e passa a conversa para sua equipe fechar o pagamento." },
+  { id: "produtos", label: "Apresentação de produtos", icon: ShoppingBag, desc: "Foto, nome, preço e estoque da peça direto na conversa, com botões para o cliente seguir." },
+  { id: "gestao", label: "Experiência de gestão", icon: LayoutDashboard, desc: "Uma visão organizada das conversas, de quem está esperando atendimento e dos produtos." },
 ] as const;
+
+/** Botões de resposta rápida, como a Donna manda no WhatsApp. */
+function QuickReplies({ options, delay }: { options: string[]; delay: number }) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2 animate-msg-in" style={{ animationDelay: `${delay}ms` }}>
+      {options.map((o) => (
+        <span key={o} className="rounded-full border border-primary/30 px-3 py-1 text-xs text-primary">{o}</span>
+      ))}
+    </div>
+  );
+}
 
 function Atendimento() {
   return (
     <Window title="WhatsApp • Demonstração" className="mx-auto max-w-md">
       <ChatHeader name="Rafael" />
       <div className="space-y-2.5 p-5">
-        <Bubble from="client">Boa tarde! Essa capinha pro Galaxy S23 ainda tem?</Bubble>
-        <Bubble from="donna" delay={300}>Boa tarde, Rafael! Tem sim, a capinha para Galaxy S23 está disponível.</Bubble>
-        <Bubble from="donna" delay={600}>Quer que eu te mostre as fotos e as formas de pagamento?</Bubble>
-        <Bubble from="client" delay={900}>Quero sim, por favor</Bubble>
+        <Bubble from="client">Boa tarde! Tem capinha pro Galaxy S23?</Bubble>
+        <Bubble from="donna" delay={300}>Tem sim! 📱 Capinha Galaxy S23 — R$ 39,90 • 📦 12 em estoque</Bubble>
+        <QuickReplies options={["🛒 Adicionar"]} delay={500} />
+        <Bubble from="client" delay={800}>🛒 Adicionar</Bubble>
+        <Bubble from="donna" delay={1100}>✅ Adicionado ao carrinho! Total: R$ 39,90</Bubble>
+        <QuickReplies options={["Finalizar carrinho"]} delay={1300} />
+        <Bubble from="client" delay={1600}>Finalizar carrinho</Bubble>
+        <Bubble from="donna" delay={1900}>Pedido #A1B2C3 separado! Vou te passar para um atendente, que já te envia o link de pagamento 🙋‍♀️</Bubble>
       </div>
     </Window>
   );
@@ -31,18 +46,16 @@ function Produtos() {
     <Window title="WhatsApp • Demonstração" className="mx-auto max-w-lg">
       <ChatHeader name="Juliana" />
       <div className="space-y-3 p-5">
-        <Bubble from="client">Quais carregadores vocês têm agora?</Bubble>
-        <Bubble from="donna" delay={300}>Olha algumas das nossas opções de carregador:</Bubble>
-        <div className="flex justify-end gap-2 overflow-x-auto pb-1 animate-msg-in" style={{ animationDelay: "500ms" }}>
+        <Bubble from="client">Tem carregador turbo 25W?</Bubble>
+        <div className="flex justify-end animate-msg-in" style={{ animationDelay: "300ms" }}>
           <ProductCard name="Carregador Turbo 25W" price="R$ 59,90" i={0} />
-          <ProductCard name="Carregador Rápido 20W" price="R$ 44,90" i={1} />
-          <ProductCard name="Carregador Dual USB" price="R$ 79,90" i={2} />
         </div>
-        <div className="flex flex-wrap justify-end gap-2 animate-msg-in" style={{ animationDelay: "800ms" }}>
-          {["Ver mais opções", "Quero o Turbo 25W", "Falar com a loja"].map((o) => (
-            <span key={o} className="rounded-full border border-primary/30 px-3 py-1 text-xs text-primary">{o}</span>
-          ))}
-        </div>
+        <Bubble from="donna" delay={600}>Tem sim! 📦 5 em estoque. Para levar, toque em &quot;Adicionar&quot; 👇</Bubble>
+        <QuickReplies options={["🛒 Adicionar"]} delay={800} />
+        <Bubble from="client" delay={1100}>Tem bateria?</Bubble>
+        <Bubble from="donna" delay={1400}>
+          Temos algumas opções 🙂 🔋 Bateria iPhone 11 — R$ 180,00 • 🔋 Bateria Galaxy A12 — R$ 120,00. Qual delas você quer?
+        </Bubble>
       </div>
     </Window>
   );
@@ -50,15 +63,15 @@ function Produtos() {
 
 function Gestao() {
   const rows = [
-    ["Juliana", "Capinha iPhone 13", "Em atendimento"],
-    ["Rafael", "Carregador Turbo 25W", "Em atendimento"],
-    ["Carla", "Prazo de entrega", "Aguardando loja"],
-    ["Pedro", "Película 3D", "Finalizada"],
+    ["Juliana", "Carregador Turbo 25W", "Donna atendendo"],
+    ["Rafael", "Pedido #A1B2C3", "Aguardando atendente"],
+    ["Carla", "Capinha iPhone 13", "Em atendimento"],
+    ["Pedro", "Película 3D", "Donna atendendo"],
   ];
   return (
     <Window title="painel.donnabot • Demonstração" className="mx-auto max-w-2xl">
       <div className="grid gap-3 p-5 sm:grid-cols-3">
-        {[["Conversas abertas", "4"], ["Aguardando loja", "1"], ["Produtos cadastrados", "38"]].map(([a, b]) => (
+        {[["Conversas abertas", "4"], ["Aguardando atendente", "1"], ["Produtos cadastrados", "38"]].map(([a, b]) => (
           <div key={a} className="rounded-xl border border-border bg-card p-4">
             <p className="text-xs text-muted-foreground">{a}</p>
             <p className="mt-1 font-mono text-2xl font-medium">{b}</p>
@@ -71,7 +84,7 @@ function Gestao() {
             <div key={n} className={cn("grid grid-cols-[1fr_1fr_auto] items-center gap-3 px-4 py-3 text-sm", i && "border-t border-border")}>
               <span className="font-medium">{n}</span>
               <span className="truncate text-muted-foreground">{p}</span>
-              <span className={cn("rounded-full px-2.5 py-0.5 text-[11px]", s === "Em atendimento" ? "bg-primary/15 text-primary" : s === "Finalizada" ? "bg-muted text-muted-foreground" : "bg-accent text-accent-foreground")}>{s}</span>
+              <span className={cn("rounded-full px-2.5 py-0.5 text-[11px]", s === "Donna atendendo" ? "bg-primary/15 text-primary" : s === "Em atendimento" ? "bg-muted text-muted-foreground" : "bg-accent text-accent-foreground")}>{s}</span>
             </div>
           ))}
         </div>
