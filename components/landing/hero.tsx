@@ -11,7 +11,7 @@ const links = [
   ["Como funciona", "/#como-funciona"],
   ["Funcionalidades", "/#funcionalidades"],
   ["Demonstração", "/#demonstracao"],
-  ["Diferenciais", "/#diferenciais"],
+  ["Avaliações", "/#avaliacoes"],
   ["Planos", "/#planos"],
 ] as const;
 
@@ -35,7 +35,7 @@ export function Nav() {
         </ul>
         <div className="ml-auto hidden items-center gap-2 lg:flex">
           <a href="/login" className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">Entrar</a>
-          <CTA href="/signup" className="h-10 whitespace-nowrap px-5">Começar gratuitamente</CTA>
+          <CTA href="/#cadastro" className="h-10 whitespace-nowrap px-5">Começar gratuitamente</CTA>
         </div>
         <button className="ml-auto grid size-10 place-items-center rounded-full border border-border lg:hidden" onClick={() => setOpen(!open)} aria-expanded={open} aria-label="Abrir menu">
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -48,7 +48,7 @@ export function Nav() {
           ))}
           <div className="mt-3 grid gap-2">
             <CTA href="/login" variant="ghost">Entrar</CTA>
-            <CTA href="/signup">Começar gratuitamente</CTA>
+            <CTA href="/#cadastro">Começar gratuitamente</CTA>
           </div>
         </div>
       )}
@@ -105,12 +105,13 @@ function HeroMockup() {
         <Window title="WhatsApp • Sua loja" className="relative ml-auto w-[88%] sm:w-[70%] [transform:translateZ(40px)]">
           <ChatHeader name="Marina" />
           <div className="space-y-2.5 p-4">
-            <Bubble from="client">Oi! Tem capinha de silicone pro iPhone 13?</Bubble>
-            <div className="flex justify-end animate-msg-in" style={{ animationDelay: "400ms" }}>
-              <ProductCard name="Capinha Silicone iPhone 13" price="R$ 39,90" i={0} />
+            <Bubble from="client">Oi! Vocês têm capinha pro iPhone 13?</Bubble>
+            <Bubble from="donna" delay={400}>Temos algumas opções 🙂 Qual delas você quer?</Bubble>
+            <div className="flex justify-end gap-2 animate-msg-in" style={{ animationDelay: "800ms" }}>
+              <ProductCard name="Capinha Silicone" price="R$ 39,90" i={0} />
+              <ProductCard name="Capinha Anti-impacto" price="R$ 49,90" i={1} />
             </div>
-            <Bubble from="donna" delay={800}>Tem sim, Marina! 📦 8 em estoque. Para levar, toque em &quot;Adicionar&quot; 👇</Bubble>
-            <Bubble from="client" delay={1200}>🛒 Adicionar</Bubble>
+            <Bubble from="client" delay={1200}>Quero a de silicone</Bubble>
             <Typing />
           </div>
         </Window>
