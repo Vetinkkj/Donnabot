@@ -51,6 +51,7 @@ export default async function SignupPage({
       password: formData.get("password"),
       confirmPassword: formData.get("confirmPassword"),
       plan: formData.get("plan") || undefined,
+      acceptTerms: formData.get("acceptTerms"),
     });
 
     if (!parsed.success) {
@@ -147,6 +148,21 @@ export default async function SignupPage({
                 minLength={8}
                 autoComplete="new-password"
               />
+
+              <label className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                <input type="checkbox" name="acceptTerms" required className="mt-1" />
+                <span>
+                  Li e aceito os{" "}
+                  <a href="/termos" target="_blank" className="underline">
+                    Termos de Uso
+                  </a>{" "}
+                  e a{" "}
+                  <a href="/privacidade" target="_blank" className="underline">
+                    Política de Privacidade
+                  </a>
+                  .
+                </span>
+              </label>
 
               <Button type="submit">Criar loja</Button>
 

@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
-import { BRAND_NAME, CONTACT_EMAIL } from "@/lib/marketing-config";
+import Link from "next/link";
+import { BRAND_NAME, CONTACT_EMAIL, LEGAL_UPDATED_AT } from "@/lib/marketing-config";
 
 export const metadata: Metadata = {
   title: `Política de Privacidade — ${BRAND_NAME}`,
   description: "Como a Donnabot coleta, usa e protege os dados de lojas e seus clientes.",
 };
 
-const UPDATED_AT = "1 de setembro de 2026";
 
 export default function PrivacidadePage() {
   return (
@@ -18,15 +18,15 @@ export default function PrivacidadePage() {
       <main className="flex-1">
         <section className="mx-auto max-w-3xl px-4 py-16 md:px-6 md:py-20">
           <h1 className="mb-2 text-3xl font-semibold text-zinc-900 dark:text-zinc-50">Política de Privacidade</h1>
-          <p className="mb-10 text-sm text-zinc-500 dark:text-zinc-400">Última atualização: {UPDATED_AT}</p>
+          <p className="mb-10 text-sm text-zinc-500 dark:text-zinc-400">Última atualização: {LEGAL_UPDATED_AT}</p>
 
           <div className="flex flex-col gap-8 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
             <section>
               <h2 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">1. Quem somos</h2>
               <p>
                 A {BRAND_NAME} é um serviço de automação de atendimento via WhatsApp para lojas de peças de celular:
-                a Donna (nosso assistente virtual) responde clientes, consulta estoque, monta pedidos e processa
-                pagamentos via PIX em nome da loja que contrata o serviço. Esta política explica quais dados
+                a Donna (nossa assistente virtual) responde clientes, consulta estoque, monta pedidos e transfere o
+                cliente para um atendente da loja, que envia a forma de pagamento. Esta política explica quais dados
                 coletamos, como usamos e como protegemos — tanto os dados da loja (nosso cliente direto) quanto os
                 dados dos clientes finais que conversam com a Donna pelo WhatsApp.
               </p>
@@ -41,9 +41,19 @@ export default function PrivacidadePage() {
               </p>
               <p>
                 <strong>Dos clientes finais (quem conversa com a Donna no WhatsApp):</strong> número de telefone,
-                nome do perfil do WhatsApp, o conteúdo das mensagens trocadas com a Donna, itens de pedidos e dados
-                de pagamento via PIX (valor, status — nunca dados de cartão). Esses dados pertencem à loja que
-                atende aquele cliente e são usados só para prestar o serviço de atendimento automatizado a ela.
+                nome do perfil do WhatsApp, o conteúdo das mensagens trocadas com a Donna e com a loja, itens de
+                pedidos e o valor e a situação do pagamento (nunca dados de cartão). Quando a loja usa o mesmo
+                número no app WhatsApp Business do celular, as mensagens que ela envia por lá também são
+                registradas, para a Donna saber quando um atendente humano assumiu a conversa.
+              </p>
+              <p className="mt-2">
+                <strong>Papéis na LGPD:</strong> para os dados dos clientes finais, a loja é a controladora e a{" "}
+                {BRAND_NAME} é a operadora — tratamos esses dados só para prestar o atendimento contratado pela
+                loja, seguindo as instruções dela e os nossos{" "}
+                <Link href="/termos" className="underline">
+                  Termos de Uso
+                </Link>
+                .
               </p>
             </section>
 
@@ -65,7 +75,7 @@ export default function PrivacidadePage() {
               <h2 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">4. Como usamos os dados</h2>
               <ul className="ml-5 list-disc space-y-1">
                 <li>Responder mensagens de clientes automaticamente (consulta de estoque, preço, disponibilidade)</li>
-                <li>Montar e processar pedidos e gerar cobranças PIX</li>
+                <li>Montar pedidos e registrar quando o atendente da loja confirma o pagamento</li>
                 <li>Permitir que a loja acompanhe conversas, pedidos e clientes pelo painel administrativo</li>
                 <li>Encaminhar a conversa para um atendente humano da loja quando solicitado</li>
                 <li>Manter a segurança da conta e prevenir uso indevido da plataforma</li>
@@ -107,7 +117,11 @@ export default function PrivacidadePage() {
               <p>
                 Você pode solicitar a qualquer momento acesso, correção, portabilidade ou exclusão dos seus dados,
                 conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018). Para exercer esses direitos, entre
-                em contato pelo e-mail abaixo.
+                em contato pelo e-mail abaixo. Para apagar seus dados, siga as instruções em{" "}
+                <Link href="/exclusao-de-dados" className="underline">
+                  Exclusão de dados
+                </Link>
+                .
               </p>
             </section>
 

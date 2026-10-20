@@ -14,6 +14,8 @@ export const signupSchema = z
     confirmPassword: z.string(),
     // Plano escolhido nos cards do site — opcional, só um indicativo.
     plan: z.enum(["monthly", "yearly"]).optional(),
+    // Checkbox do formulário: o navegador manda "on" quando marcado.
+    acceptTerms: z.literal("on", { message: "Para criar a loja, aceite os Termos de Uso e a Política de Privacidade" }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "As senhas não coincidem",

@@ -8,12 +8,18 @@ export function MarketingFooter() {
         <span>
           © {new Date().getFullYear()} {BRAND_NAME} — atendimento automático via WhatsApp
         </span>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1">
           <Link href="/duvidas" className="hover:underline">
             Dúvidas
           </Link>
+          <Link href="/termos" className="hover:underline">
+            Termos
+          </Link>
           <Link href="/privacidade" className="hover:underline">
             Privacidade
+          </Link>
+          <Link href="/exclusao-de-dados" className="hover:underline">
+            Exclusão de dados
           </Link>
           <Link href="/login" className="hover:underline">
             Entrar
