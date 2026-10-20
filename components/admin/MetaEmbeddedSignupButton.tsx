@@ -80,6 +80,36 @@ export function MetaEmbeddedSignupButton({ appId, configId, mode, label, onConne
     document.body.appendChild(script);
   }, [appId]);
 
+  async function finishSignup(code: string) {
+    // O evento FINISH (postMessage) às vezes chega um instante depois do
+    // callback do FB.login — espera um pouco por ele antes de desistir do wabaId.
+    for (let attempt = 0; attempt < 10 && !capturedRef.current.wabaId; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    try {
+      const res = await fetch("/api/admin/integrations/whatsapp/embedded-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          mode,
+          phoneNumberId: capturedRef.current.phoneNumberId,
+          wabaId: capturedRef.current.wabaId,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "Erro ao concluir a conexão");
+        return;
+      }
+      onConnected(json.data);
+    } catch {
+      setError("Erro de conexão ao concluir o cadastro");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleClick() {
     if (!window.FB) {
       setError("SDK da Meta ainda não carregou, tente novamente em alguns segundos.");
@@ -90,35 +120,16 @@ export function MetaEmbeddedSignupButton({ appId, configId, mode, label, onConne
     capturedRef.current = {};
 
     window.FB.login(
-      async (response) => {
+      // Precisa ser uma função comum: o SDK da Meta recusa callback `async`
+      // ("Expression is of type asyncfunction, not function") e nunca o chama.
+      (response) => {
         const code = response.authResponse?.code;
         if (!code) {
           setError("Conexão cancelada ou sem permissão concedida.");
           setLoading(false);
           return;
         }
-        try {
-          const res = await fetch("/api/admin/integrations/whatsapp/embedded-signup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              code,
-              mode,
-              phoneNumberId: capturedRef.current.phoneNumberId,
-              wabaId: capturedRef.current.wabaId,
-            }),
-          });
-          const json = await res.json();
-          if (!res.ok) {
-            setError(json.error ?? "Erro ao concluir a conexão");
-            return;
-          }
-          onConnected(json.data);
-        } catch {
-          setError("Erro de conexão ao concluir o cadastro");
-        } finally {
-          setLoading(false);
-        }
+        void finishSignup(code);
       },
       {
         config_id: configId,
