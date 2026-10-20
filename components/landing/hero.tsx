@@ -35,7 +35,7 @@ export function Nav() {
         </ul>
         <div className="ml-auto hidden items-center gap-2 lg:flex">
           <a href="/login" className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">Entrar</a>
-          <CTA href="/#cadastro" className="h-10 whitespace-nowrap px-5">Começar gratuitamente</CTA>
+          <CTA href="/#cadastro" className="h-10 whitespace-nowrap px-5">Começar agora</CTA>
         </div>
         <button className="ml-auto grid size-10 place-items-center rounded-full border border-border lg:hidden" onClick={() => setOpen(!open)} aria-expanded={open} aria-label="Abrir menu">
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -48,7 +48,7 @@ export function Nav() {
           ))}
           <div className="mt-3 grid gap-2">
             <CTA href="/login" variant="ghost">Entrar</CTA>
-            <CTA href="/#cadastro">Começar gratuitamente</CTA>
+            <CTA href="/#cadastro">Começar agora</CTA>
           </div>
         </div>
       )}
@@ -147,11 +147,11 @@ export function Hero() {
             Automatize o atendimento da sua loja de peças e acessórios de celular pelo WhatsApp: capinhas, carregadores, películas, fones e muito mais, direto na conversa.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <CTA href="#cadastro">Experimentar grátis por {PRICING.trialDays} dias <ArrowRight className="size-4" /></CTA>
+            <CTA href="#cadastro">Testar por {PRICING.refundDays} dias com garantia <ArrowRight className="size-4" /></CTA>
             <CTA href="#demonstracao" variant="ghost"><Play className="size-4" /> Ver demonstração</CTA>
           </div>
           <p className="mt-5 flex items-center gap-2 text-sm text-muted-foreground">
-            <Zap className="size-4 text-primary" /> {PRICING.trialDays} dias grátis para testar • Conheça a plataforma sem compromisso
+            <Zap className="size-4 text-primary" /> {PRICING.refundDays} dias para testar com reembolso garantido • Conheça a plataforma sem risco
           </p>
         </div>
         <HeroMockup />

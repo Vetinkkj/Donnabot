@@ -21,5 +21,6 @@ export const CONTACT_WHATSAPP = "";
 export const PRICING = {
   monthly: 300,
   yearly: 3000,
-  trialDays: 10,
+  // Garantia: a loja paga e pode pedir reembolso integral até X dias depois.
+  refundDays: 7,
 };

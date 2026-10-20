@@ -36,12 +36,15 @@ export default function TermosPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="3. Planos, teste e pagamento">
+      <LegalSection title="3. Planos, garantia e pagamento">
         <ul className="ml-5 list-disc space-y-1">
-          <li>A loja pode testar o serviço por {PRICING.trialDays} dias sem custo.</li>
           <li>
-            Depois do teste, o uso depende do pagamento do plano escolhido (mensal ou anual), nos valores informados
-            no site no momento da contratação.
+            O uso do serviço depende do pagamento do plano escolhido (mensal ou anual), nos valores informados no site
+            no momento da contratação.
+          </li>
+          <li>
+            Garantia de {PRICING.refundDays} dias: a Loja pode cancelar em até {PRICING.refundDays} dias depois do
+            primeiro pagamento e pedir o reembolso integral pelo e-mail de contato.
           </li>
           <li>
             Sem o pagamento em dia, o acesso ao painel e o atendimento da Donna são suspensos até a regularização.

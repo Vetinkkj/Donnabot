@@ -22,7 +22,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
           <div className="grid-bg pointer-events-none absolute inset-0" />
           <div className="pointer-events-none absolute -top-40 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-glow blur-3xl" />
           <div className="reveal relative mx-auto max-w-3xl px-5 sm:px-8">
-            <Eyebrow>{PRICING.trialDays} dias grátis para testar</Eyebrow>
+            <Eyebrow>{PRICING.refundDays} dias para testar com reembolso garantido</Eyebrow>
             <h1 className="mt-6 text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
               Coloque a Donna para <span className="text-gradient">atender sua loja.</span>
             </h1>

@@ -8,10 +8,10 @@ import { PRICING } from "@/lib/marketing-config";
 
 export const metadata: Metadata = {
   title: "Donnabot — Atendimento e vendas pelo WhatsApp",
-  description: `A Donna atende seus clientes no WhatsApp, apresenta capinhas, carregadores e acessórios e ajuda sua loja a vender. ${PRICING.trialDays} dias grátis.`,
+  description: `A Donna atende seus clientes no WhatsApp, apresenta capinhas, carregadores e acessórios e ajuda sua loja a vender. ${PRICING.refundDays} dias de garantia com reembolso.`,
   openGraph: {
     title: "Donnabot — Seu novo vendedor no WhatsApp",
-    description: `Automatize o atendimento da sua loja pelo WhatsApp. Teste grátis por ${PRICING.trialDays} dias.`,
+    description: `Automatize o atendimento da sua loja pelo WhatsApp. Teste por ${PRICING.refundDays} dias com reembolso garantido.`,
     type: "website",
   },
   twitter: { card: "summary_large_image" },

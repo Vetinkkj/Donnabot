@@ -18,7 +18,7 @@ const PLANS = [
     name: "Mensal",
     price: currency.format(PRICING.monthly),
     per: "/mês",
-    cta: "Começar teste grátis",
+    cta: "Começar agora",
     note: "Cobrança mensal",
   },
   {
@@ -33,7 +33,7 @@ const PLANS = [
 
 function Pricing({ onPick }: { onPick: (plan: Plan) => void }) {
   const features = [
-    `Período de teste de ${PRICING.trialDays} dias`,
+    `Garantia de ${PRICING.refundDays} dias: não gostou, devolvemos o valor`,
     "Acesso às funcionalidades do plano atual",
     "Configuração assistida pela equipe",
   ];
@@ -47,7 +47,7 @@ function Pricing({ onPick }: { onPick: (plan: Plan) => void }) {
         <SectionHead
           eyebrow="Planos"
           title="Escolha como sua loja quer começar."
-          sub={`Experimente a Donnabot por ${PRICING.trialDays} dias e conheça a plataforma.`}
+          sub={`Experimente a Donnabot por ${PRICING.refundDays} dias com reembolso garantido.`}
         />
         <div className="mt-14 grid gap-5 md:grid-cols-2">
           {PLANS.map((p) => {
@@ -149,7 +149,7 @@ function Signup({
             ))}
           </div>
           <p className="mt-3 text-sm text-muted-foreground">
-            {PRICING.trialDays} dias grátis pra testar. Dá pra trocar de plano depois com a gente.
+            {PRICING.refundDays} dias para testar com reembolso garantido. Dá pra trocar de plano depois com a gente.
           </p>
         </div>
         <form action={signupAction} className="reveal rounded-3xl border border-border bg-card/60 p-6 shadow-elegant sm:p-8">

@@ -103,7 +103,7 @@ const trust = [
   { icon: MessagesSquare, t: "Feita para o WhatsApp", d: "Foco total em atendimento e vendas no canal que seus clientes já usam.", big: true },
   { icon: Wrench, t: "Configuração assistida", d: "Você não começa sozinho: a equipe ajuda na conexão e no cadastro." },
   { icon: Eye, t: "Veja antes de decidir", d: "Demonstração visual de como a Donna conversa." },
-  { icon: CalendarCheck, t: `${PRICING.trialDays} dias de teste`, d: "Tempo para conhecer a plataforma na sua loja." },
+  { icon: CalendarCheck, t: `${PRICING.refundDays} dias de garantia`, d: "Teste na sua loja; se não gostar, devolvemos o valor pago." },
   { icon: FileText, t: "Planos claros", d: "Dois planos, preços abertos e processo de contratação explicado.", big: true },
 ];
 
@@ -147,8 +147,8 @@ const faq: [string, string][] = [
     "Sim, a Donna precisa conhecer seus produtos — capinhas, carregadores, películas, fones e mais — para apresentá-los. A equipe ajuda você nesse cadastro.",
   ],
   [
-    `Como funciona o teste grátis de ${PRICING.trialDays} dias?`,
-    `Os dois planos começam com ${PRICING.trialDays} dias grátis para você testar. Para detalhes de cobrança, fale com a nossa equipe.`,
+    `Como funciona a garantia de ${PRICING.refundDays} dias?`,
+    `Você contrata o plano e tem ${PRICING.refundDays} dias para testar a Donna na sua loja. Se não gostar, é só pedir o reembolso pelo nosso e-mail dentro desse prazo e devolvemos o valor integral.`,
   ],
   [
     "Qual é a diferença entre os planos?",
@@ -227,9 +227,9 @@ export function FinalCTA({ href = "#cadastro" }: { href?: string }) {
             Conheça uma nova forma de vender capinhas, carregadores e acessórios pelo WhatsApp.
           </p>
           <CTA href={href} className="mt-9">
-            Começar gratuitamente <ArrowRight className="size-4" />
+            Começar agora <ArrowRight className="size-4" />
           </CTA>
-          <p className="mt-4 text-sm text-muted-foreground">{PRICING.trialDays} dias grátis para testar</p>
+          <p className="mt-4 text-sm text-muted-foreground">{PRICING.refundDays} dias de garantia com reembolso</p>
         </div>
       </div>
     </section>
