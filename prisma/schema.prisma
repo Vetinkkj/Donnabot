@@ -232,7 +232,7 @@ enum PaymentStatus {
 model Payment {
   id              String        @id @default(cuid())
   orderId         String        @unique
-  provider        String // "mock" | "mercadopago" | "efi" | "asaas" | "pagbank"
+  provider        String // "mock" | "mercadopago" | "efi" | "asaas" | "pagbank" | "manual" (atendente marcou como pago)
   externalId      String? // ID da cobrança no gateway
   qrCode          String? // imagem/base64 do QR Code PIX
   copyPasteCode   String? // código "PIX copia e cola"

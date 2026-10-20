@@ -100,11 +100,17 @@ export async function confirmOrderPayment(storeId: string, orderId: string): Pro
   if (order.status === "PAID") return { ok: true, alreadyProcessed: true };
   if (order.status !== "PENDING") return { ok: false, reason: "order_not_pending" };
 
+  const paidAt = new Date();
   await db.$transaction([
     db.order.update({ where: { id: order.id }, data: { status: "PAID" } }),
-    ...(order.payment
-      ? [db.payment.update({ where: { id: order.payment.id }, data: { status: "PAID", paidAt: new Date() } })]
-      : []),
+    // Sem cobrança gerada pela Donna = pagamento feito por fora (link enviado
+    // pelo atendente). Registramos um pagamento "manual" mesmo assim: é dele
+    // que o dashboard tira as vendas e o faturamento do dia.
+    order.payment
+      ? db.payment.update({ where: { id: order.payment.id }, data: { status: "PAID", paidAt } })
+      : db.payment.create({
+          data: { orderId: order.id, provider: "manual", amount: order.total, status: "PAID", paidAt },
+        }),
     ...order.items.flatMap((item) => [
       db.product.update({ where: { id: item.productId }, data: { stockQuantity: { decrement: item.quantity } } }),
       db.stockMovement.create({

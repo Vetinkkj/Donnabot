@@ -74,13 +74,22 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           <h2 className="mb-2 text-sm font-medium text-zinc-500">Pagamento</h2>
           {data.payment ? (
             <div className="flex flex-col gap-1 text-sm text-zinc-700 dark:text-zinc-300">
-              <span>Forma: PIX ({data.payment.provider})</span>
-              <span>Status: {data.payment.status}</span>
-              <span className="break-all">ID da transação: {data.payment.externalId ?? "—"}</span>
+              {data.payment.provider === "manual" ? (
+                <span>Pagamento registrado manualmente pelo atendente</span>
+              ) : (
+                <>
+                  <span>Forma: PIX ({data.payment.provider})</span>
+                  <span>Status: {data.payment.status}</span>
+                  <span className="break-all">ID da transação: {data.payment.externalId ?? "—"}</span>
+                </>
+              )}
               {data.payment.paidAt && <span>Pago em: {dateFormatter.format(new Date(data.payment.paidAt))}</span>}
             </div>
           ) : (
-            <p className="text-sm text-zinc-500">Nenhuma cobrança gerada ainda.</p>
+            <p className="text-sm text-zinc-500">
+              Aguardando pagamento. Depois que o cliente pagar pelo link enviado no atendimento, clique em
+              &quot;Marcar como pago&quot;.
+            </p>
           )}
         </section>
       </div>
