@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { AuthError } from "next-auth";
-import { signIn } from "@/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { signupSchema } from "@/lib/validations/auth";
-import { createStoreWithOwner } from "@/services/store";
+import { signupAction } from "./actions";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { PlanSelector } from "@/components/marketing/PlanSelector";
@@ -41,45 +37,6 @@ export default async function SignupPage({
 }) {
   const params = await searchParams;
 
-  async function handleSignup(formData: FormData) {
-    "use server";
-
-    const parsed = signupSchema.safeParse({
-      storeName: formData.get("storeName"),
-      ownerName: formData.get("ownerName"),
-      email: formData.get("email"),
-      password: formData.get("password"),
-      confirmPassword: formData.get("confirmPassword"),
-      plan: formData.get("plan") || undefined,
-      acceptTerms: formData.get("acceptTerms"),
-    });
-
-    if (!parsed.success) {
-      const message = parsed.error.issues[0]?.message ?? "Dados inválidos";
-      redirect(`/signup?error=${encodeURIComponent(message)}`);
-    }
-
-    try {
-      await createStoreWithOwner(parsed.data);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Erro ao criar loja";
-      redirect(`/signup?error=${encodeURIComponent(message)}`);
-    }
-
-    try {
-      await signIn("credentials", {
-        email: parsed.data.email,
-        password: parsed.data.password,
-        redirectTo: "/dashboard",
-      });
-    } catch (error) {
-      if (error instanceof AuthError) {
-        redirect(`/login?error=${error.type}`);
-      }
-      throw error;
-    }
-  }
-
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-black">
       <MarketingNav />
@@ -114,7 +71,7 @@ export default async function SignupPage({
         {/* Formulário (com o plano escolhido embutido) */}
         <section className="border-y border-zinc-100 bg-zinc-50 py-16 dark:border-zinc-900 dark:bg-zinc-950">
           <form
-            action={handleSignup}
+            action={signupAction}
             className="mx-auto flex max-w-2xl flex-col gap-6 px-4 md:px-6"
           >
             <div className="text-center">
