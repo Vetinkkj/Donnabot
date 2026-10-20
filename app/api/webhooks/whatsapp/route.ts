@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStoreId } from "@/lib/current-store";
-import { handleIncomingMessage } from "@/services/conversation";
+import { handleIncomingMessage, handleOwnerReplyFromPhone } from "@/services/conversation";
 import { getStoreByWhatsappPhoneNumberId } from "@/services/store";
 
 /**
@@ -15,6 +15,10 @@ import { getStoreByWhatsappPhoneNumberId } from "@/services/store";
  * loja é descoberta pelo `phone_number_id` presente no payload
  * (`entry[].changes[].value.metadata.phone_number_id`); se a loja não tiver
  * número próprio cadastrado, cai no fallback single-store (getCurrentStoreId).
+ *
+ * Coexistência: além de `messages` (cliente → loja), chegam `message_echoes`
+ * (lojista respondendo pelo app no celular), que pausam a Donna naquela
+ * conversa. `history` e `smb_app_state_sync` são ignorados por enquanto.
  */
 
 // Meta chama esta rota com GET uma vez, na hora de configurar o webhook,
@@ -45,6 +49,9 @@ type MetaWebhookPayload = {
           interactive?: { type?: string; button_reply?: { id?: string; title?: string } };
           button?: { text?: string; payload?: string };
         }>;
+        // Coexistência (field "smb_message_echoes"): o que o lojista mandou
+        // pelo app no celular. Aqui `from` é a loja e `to` é o cliente.
+        message_echoes?: Array<{ to?: string; type?: string; text?: { body?: string } }>;
       };
     }>;
   }>;
@@ -105,6 +112,13 @@ export async function POST(request: NextRequest) {
 
           const contact = contacts.find((c) => c.wa_id === message.from);
           await handleIncomingMessage(storeId, message.from, text, contact?.profile?.name);
+        }
+
+        // Lojista respondeu pelo celular → Donna pausa essa conversa.
+        for (const echo of change.value?.message_echoes ?? []) {
+          if (!echo.to) continue;
+          const text = echo.type === "text" && echo.text?.body ? echo.text.body : `[${echo.type ?? "mensagem"} enviada pelo celular]`;
+          await handleOwnerReplyFromPhone(storeId, echo.to, text);
         }
       }
     }

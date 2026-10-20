@@ -410,6 +410,27 @@ export async function handleIncomingMessage(storeId: string, phone: string, text
   return { reply, conversationId: conversation.id, status: newStatus };
 }
 
+/**
+ * Coexistência: o lojista respondeu o cliente pelo app WhatsApp Business no
+ * celular (webhook `smb_message_echoes`). A conversa passa a ser HUMANA — a
+ * Donna fica em silêncio com esse cliente, como se o atendente tivesse
+ * clicado em "Assumir atendimento" no painel, até alguém encerrar o
+ * atendimento. Se o lojista puxou conversa com um cliente novo, ela já nasce
+ * humana, pra Donna não se intrometer quando o cliente responder.
+ */
+export async function handleOwnerReplyFromPhone(storeId: string, customerPhone: string, text: string) {
+  const customer = await getOrCreateCustomer(storeId, customerPhone);
+  const conversation = await getOrCreateConversation(storeId, customer.id);
+
+  await saveMessage(conversation.id, "OUT", `📱 ${text}`);
+  await db.conversation.update({
+    where: { id: conversation.id },
+    data: { status: "HUMAN", lastMessageAt: new Date() },
+  });
+
+  return { conversationId: conversation.id, pausedBot: conversation.status !== "HUMAN" };
+}
+
 // ---------------------------------------------------------------------------
 // PAINEL ADMIN — ATENDIMENTO HUMANO
 // ---------------------------------------------------------------------------
