@@ -4,7 +4,7 @@ import { useState } from "react";
 import { LayoutDashboard, MessagesSquare, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { SectionHead } from "./primitives";
-import { Bubble, ChatHeader, ProductCard, Window } from "./mockups";
+import { Bubble, ChatHeader, Window } from "./mockups";
 
 const tabs = [
   { id: "atendimento", label: "Atendimento automatizado", icon: MessagesSquare, desc: "O cliente pergunta, a Donna responde com naturalidade e mantém a conversa andando." },
@@ -18,7 +18,7 @@ function Atendimento() {
       <ChatHeader name="Rafael" />
       <div className="space-y-2.5 p-5">
         <Bubble from="client">Boa tarde! Tem capinha pro Galaxy S23?</Bubble>
-        <Bubble from="donna" delay={300}>Sim! Temos disponível: 📱 Capinha Galaxy S23 • 💰 R$ 39,90 • 📦 Estoque: 12 unidades</Bubble>
+        <Bubble from="donna" delay={300}>Sim! Temos disponível: 🛡️ Capinha Galaxy S23 • 💰 R$ 39,90 • 📦 Estoque: 12 unidades</Bubble>
         <Bubble from="donna" delay={600}>Para levar, toque em &quot;Adicionar&quot; 👇</Bubble>
         <Bubble from="client" delay={900}>🛒 Adicionar</Bubble>
       </div>
@@ -32,17 +32,12 @@ function Produtos() {
       <ChatHeader name="Juliana" />
       <div className="space-y-3 p-5">
         <Bubble from="client">Tem carregador turbo?</Bubble>
-        <Bubble from="donna" delay={300}>Temos algumas opções 🙂 Qual delas você quer? Se for para outro aparelho, me diga o modelo.</Bubble>
-        <div className="flex justify-end gap-2 overflow-x-auto pb-1 animate-msg-in" style={{ animationDelay: "500ms" }}>
-          <ProductCard name="Carregador Turbo 25W" price="R$ 59,90" i={0} />
-          <ProductCard name="Carregador Rápido 20W" price="R$ 44,90" i={1} />
-          <ProductCard name="Carregador Dual USB" price="R$ 79,90" i={2} />
-        </div>
-        <div className="flex flex-wrap justify-end gap-2 animate-msg-in" style={{ animationDelay: "800ms" }}>
-          {["🛒 Adicionar", "Finalizar carrinho", "Falar c/ atendente"].map((o) => (
-            <span key={o} className="rounded-full border border-primary/30 px-3 py-1 text-xs text-primary">{o}</span>
-          ))}
-        </div>
+        <Bubble from="donna" delay={300}>
+          {"Temos algumas opções 🙂\n⚡ Carregador Turbo 25W — R$ 59,90\n⚡ Carregador Rápido 20W — R$ 44,90\n⚡ Carregador Dual USB — R$ 79,90\nQual delas você quer?"}
+        </Bubble>
+        <Bubble from="client" delay={700}>Quero o Turbo 25W</Bubble>
+        <Bubble from="donna" delay={1000}>Sim! Temos disponível: ⚡ Carregador Turbo 25W • 💰 R$ 59,90 • 📦 Estoque: 5 unidades</Bubble>
+        <Bubble from="donna" delay={1300}>Para levar, toque em &quot;Adicionar&quot; 👇</Bubble>
       </div>
     </Window>
   );

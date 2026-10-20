@@ -166,6 +166,9 @@ const CATEGORY_EMOJI: Record<string, string> = {
   camera: "📷",
   "conector de carga": "🔌",
   capa: "🛡️",
+  carregador: "⚡",
+  fone: "🎧",
+  pelicula: "📲",
 };
 
 export function getCategoryEmoji(categoryName?: string | null): string {

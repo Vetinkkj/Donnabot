@@ -23,7 +23,7 @@ export function Bubble({ from, children, delay = 0 }: { from: "client" | "donna"
     >
       <div
         className={cn(
-          "max-w-[85%] rounded-2xl px-3.5 py-2 text-[13px] leading-snug",
+          "max-w-[85%] whitespace-pre-line rounded-2xl px-3.5 py-2 text-[13px] leading-snug",
           from === "donna" ? "rounded-br-md bg-bubble-out" : "rounded-bl-md bg-bubble-in",
         )}
       >
@@ -40,22 +40,6 @@ export function Typing() {
         <span className="size-1.5 rounded-full bg-foreground" />
         <span className="size-1.5 rounded-full bg-foreground" />
         <span className="size-1.5 rounded-full bg-foreground" />
-      </div>
-    </div>
-  );
-}
-
-const swatches = ["from-primary/50 to-primary-deep/30", "from-accent-foreground/30 to-muted", "from-primary-deep/60 to-surface"];
-
-export function ProductCard({ name, price, i = 0 }: { name: string; price: string; i?: number }) {
-  return (
-    <div className="w-36 shrink-0 overflow-hidden rounded-xl border border-border bg-card">
-      <div className={cn("relative aspect-[4/3] bg-linear-to-br", swatches[i % 3])}>
-        <div className="absolute inset-x-6 bottom-0 top-4 rounded-t-[40%] bg-foreground/10 backdrop-blur-sm" />
-      </div>
-      <div className="p-2.5">
-        <p className="truncate text-xs font-medium">{name}</p>
-        <p className="mt-0.5 font-mono text-[11px] text-primary">{price}</p>
       </div>
     </div>
   );

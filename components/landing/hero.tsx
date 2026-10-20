@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Menu, MessageCircle, Play, ShoppingBag, X, Zap } from "lucide-react";
 import { PRICING } from "@/lib/marketing-config";
 import { CTA, Eyebrow, Logo } from "./primitives";
-import { Bubble, ChatHeader, ProductCard, Typing, Window } from "./mockups";
+import { Bubble, ChatHeader, Typing, Window } from "./mockups";
 
 const links = [
   ["Como funciona", "/#como-funciona"],
@@ -106,12 +106,10 @@ function HeroMockup() {
           <ChatHeader name="Marina" />
           <div className="space-y-2.5 p-4">
             <Bubble from="client">Oi! Vocês têm capinha pro iPhone 13?</Bubble>
-            <Bubble from="donna" delay={400}>Temos algumas opções 🙂 Qual delas você quer?</Bubble>
-            <div className="flex justify-end gap-2 animate-msg-in" style={{ animationDelay: "800ms" }}>
-              <ProductCard name="Capinha Silicone" price="R$ 39,90" i={0} />
-              <ProductCard name="Capinha Anti-impacto" price="R$ 49,90" i={1} />
-            </div>
-            <Bubble from="client" delay={1200}>Quero a de silicone</Bubble>
+            <Bubble from="donna" delay={400}>
+              {"Temos algumas opções 🙂\n🛡️ Capinha Silicone iPhone 13 — R$ 39,90\n🛡️ Capinha Anti-impacto iPhone 13 — R$ 49,90\nQual delas você quer?"}
+            </Bubble>
+            <Bubble from="client" delay={900}>Quero a de silicone</Bubble>
             <Typing />
           </div>
         </Window>
