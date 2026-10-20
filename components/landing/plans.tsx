@@ -10,7 +10,11 @@ import { SectionHead } from "./primitives";
 type Plan = "monthly" | "yearly";
 
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-const yearlySavings = PRICING.monthly * 12 - PRICING.yearly;
+const yearlyFullPrice = PRICING.monthly * 12;
+const yearlySavings = yearlyFullPrice - PRICING.yearly;
+// Desconto do anual em relação a 12 mensalidades (ex: 3.600 → 3.000 = 17%).
+const yearlyDiscountPercent = Math.round((yearlySavings / yearlyFullPrice) * 100);
+const yearlyPerMonth = currency.format(Math.round(PRICING.yearly / 12));
 
 const PLANS = [
   {
@@ -62,15 +66,33 @@ function Pricing({ onPick }: { onPick: (plan: Plan) => void }) {
               >
                 {hi && (
                   <span className="absolute -top-3 left-8 rounded-full bg-gradient-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                    2 meses de economia
+                    {yearlyDiscountPercent}% OFF • 2 meses de economia
                   </span>
                 )}
-                <p className="font-medium text-muted-foreground">{p.name}</p>
-                <p className="mt-4 flex items-baseline gap-1">
+                <p className="flex items-center gap-2 font-medium text-muted-foreground">
+                  {p.name}
+                  {hi && (
+                    <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                      -{yearlyDiscountPercent}%
+                    </span>
+                  )}
+                </p>
+                {hi && (
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    De <span className="line-through">{currency.format(yearlyFullPrice)}</span> por
+                  </p>
+                )}
+                <p className={cn("flex items-baseline gap-1", hi ? "mt-1" : "mt-4")}>
                   <span className="text-5xl font-semibold tracking-tight">{p.price}</span>
                   <span className="text-muted-foreground">{p.per}</span>
                 </p>
                 <p className={cn("mt-2 text-sm", hi ? "text-primary" : "text-muted-foreground")}>{p.note}</p>
+                {hi && (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Sai por <span className="font-semibold text-foreground">{yearlyPerMonth}/mês</span> em vez de{" "}
+                    {currency.format(PRICING.monthly)}
+                  </p>
+                )}
                 <ul className="mt-8 space-y-3">
                   {features.map((f) => (
                     <li key={f} className="flex gap-3 text-sm">
@@ -145,6 +167,7 @@ function Signup({
               >
                 {p.name} · {p.price}
                 {p.per}
+                {p.id === "yearly" && <span className="ml-1.5 text-xs font-semibold">(-{yearlyDiscountPercent}%)</span>}
               </button>
             ))}
           </div>
