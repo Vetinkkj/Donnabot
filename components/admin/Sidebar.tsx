@@ -1,8 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BRAND_NAME } from "@/lib/marketing-config";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -29,8 +31,11 @@ export function Sidebar({
 
   return (
     <nav className="flex shrink-0 flex-col gap-1 border-b border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950 md:h-screen md:w-56 md:border-b-0 md:border-r">
-      <div className="mb-4 hidden px-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50 md:block">
-        BOTloja
+      <div className="mb-4 hidden items-center gap-2 px-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50 md:flex">
+        <span className="relative block h-9 w-9 shrink-0 overflow-hidden rounded-full bg-black">
+          <Image src="/logo-icon.png" alt="" fill sizes="36px" className="object-cover" />
+        </span>
+        {BRAND_NAME}
       </div>
       <div className="flex gap-1 overflow-x-auto md:flex-col md:overflow-x-visible">
         {navItems.map((item) => {

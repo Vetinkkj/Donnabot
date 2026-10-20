@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LogoutButton } from "@/components/admin/LogoutButton";
+import { BRAND_NAME } from "@/lib/marketing-config";
 
 /**
  * Área da plataforma (não é o painel de uma loja) — só pra quem tem
@@ -18,7 +19,7 @@ export default async function PlatformLayout({ children }: { children: ReactNode
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
         <div>
-          <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">BOTloja — Administração da plataforma</h1>
+          <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{BRAND_NAME} — Administração da plataforma</h1>
           <p className="text-xs text-zinc-500">{session.user.email}</p>
         </div>
         <div className="w-24">
