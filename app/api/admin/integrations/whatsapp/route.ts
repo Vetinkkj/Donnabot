@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { getCurrentStoreId } from "@/lib/current-store";
 import { saveWhatsAppIntegrationSchema } from "@/lib/validations/integrations";
 import {
@@ -7,6 +8,17 @@ import {
   saveMetaIntegration,
   saveTwilioIntegration,
 } from "@/services/store";
+
+/**
+ * Colar credenciais manualmente (Meta/Twilio) e remover a integração é só
+ * para o dono da plataforma — o lojista conecta pelo "conectar em um clique"
+ * (embedded-signup/route.ts) e não mexe em token nenhum.
+ */
+async function forbidUnlessPlatformAdmin() {
+  const session = await auth();
+  if (session?.user?.isPlatformAdmin) return null;
+  return NextResponse.json({ error: "Só o suporte da plataforma pode alterar a integração manualmente" }, { status: 403 });
+}
 
 export async function GET() {
   try {
@@ -21,6 +33,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const forbidden = await forbidUnlessPlatformAdmin();
+    if (forbidden) return forbidden;
+
     const storeId = await getCurrentStoreId();
     const body = await request.json();
     const parsed = saveWhatsAppIntegrationSchema.safeParse(body);
@@ -63,6 +78,9 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE() {
   try {
+    const forbidden = await forbidUnlessPlatformAdmin();
+    if (forbidden) return forbidden;
+
     const storeId = await getCurrentStoreId();
     await removeWhatsAppIntegration(storeId);
     const status = await getStoreIntegrationsStatus(storeId);

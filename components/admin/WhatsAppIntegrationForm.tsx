@@ -21,12 +21,19 @@ const EMPTY_TWILIO = { accountSid: "", authToken: "", whatsappNumber: "" };
 
 type EmbeddedSignupConfig = { appId: string; configId: string };
 
+/**
+ * O lojista vê só se está conectado e os botões de "conectar em um clique".
+ * Credenciais manuais (Meta/Twilio), IDs e "remover integração" aparecem só
+ * para o dono da plataforma — a API também recusa essas ações para os outros.
+ */
 export function WhatsAppIntegrationForm({
   initialStatus,
   embeddedSignup,
+  isPlatformAdmin = false,
 }: {
   initialStatus: WhatsAppIntegrationStatus;
   embeddedSignup?: EmbeddedSignupConfig;
+  isPlatformAdmin?: boolean;
 }) {
   const [status, setStatus] = useState(initialStatus);
   const [provider, setProvider] = useState<Provider>(
@@ -108,17 +115,25 @@ export function WhatsAppIntegrationForm({
         <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">WhatsApp desta loja</h2>
         {isConfigured ? (
           <Badge tone="success">
-            Conectado via {status.whatsappProvider === "meta" ? "Meta Cloud API" : "Twilio"}
+            {isPlatformAdmin
+              ? `Conectado via ${status.whatsappProvider === "meta" ? "Meta Cloud API" : "Twilio"}`
+              : "Conectado"}
           </Badge>
         ) : (
-          <Badge tone="neutral">Não conectado (usando padrão do sistema)</Badge>
+          <Badge tone="neutral">{isPlatformAdmin ? "Não conectado (usando padrão do sistema)" : "Não conectado"}</Badge>
         )}
       </div>
       <p className="mb-3 text-xs text-zinc-500">
-        Cole aqui as credenciais do WhatsApp desta loja para que ela use o próprio número, em vez do número padrão
-        configurado no servidor. Os valores ficam criptografados no banco e nunca são exibidos de novo depois de
-        salvos.
+        {isPlatformAdmin
+          ? "Cole aqui as credenciais do WhatsApp desta loja para que ela use o próprio número, em vez do número padrão configurado no servidor. Os valores ficam criptografados no banco e nunca são exibidos de novo depois de salvos."
+          : isConfigured
+            ? "O WhatsApp da sua loja está conectado e a Donna já está atendendo seus clientes."
+            : "Conecte o WhatsApp da sua loja para a Donna começar a atender seus clientes."}
       </p>
+
+      {!isPlatformAdmin && !isConfigured && !embeddedSignup && (
+        <p className="mb-3 text-xs text-zinc-500">Fale com o suporte da Donnabot para conectar o seu número.</p>
+      )}
 
       {embeddedSignup && !isConfigured && (
         <div className="mb-4 flex flex-col gap-2 rounded-md border border-dashed border-zinc-300 p-3 dark:border-zinc-700">
@@ -144,11 +159,11 @@ export function WhatsAppIntegrationForm({
             onConnected={handleEmbeddedSignupConnected}
           />
           <p className="text-xs text-zinc-500">Para um chip que ainda não está em nenhum WhatsApp.</p>
-          <p className="text-center text-xs text-zinc-400">— ou configure manualmente abaixo —</p>
+          {isPlatformAdmin && <p className="text-center text-xs text-zinc-400">— ou configure manualmente abaixo —</p>}
         </div>
       )}
 
-      {isConfigured && (
+      {isPlatformAdmin && isConfigured && (
         <div className="mb-4 flex flex-col gap-1 rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
           {status.whatsappProvider === "meta" && status.whatsappPhoneNumberId && (
             <span>Phone Number ID: {status.whatsappPhoneNumberId}</span>
@@ -178,86 +193,88 @@ export function WhatsAppIntegrationForm({
         </p>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={provider === "meta" ? "primary" : "secondary"}
-            onClick={() => setProvider("meta")}
-          >
-            Meta Cloud API
-          </Button>
-          <Button
-            type="button"
-            variant={provider === "twilio" ? "primary" : "secondary"}
-            onClick={() => setProvider("twilio")}
-          >
-            Twilio
-          </Button>
-        </div>
-
-        {provider === "meta" ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input
-              label="Token de acesso permanente"
-              type="password"
-              value={meta.token}
-              onChange={(e) => setMeta((prev) => ({ ...prev, token: e.target.value }))}
-              error={fieldErrors?.token}
-              className="sm:col-span-2"
-            />
-            <Input
-              label="Phone Number ID"
-              value={meta.phoneNumberId}
-              onChange={(e) => setMeta((prev) => ({ ...prev, phoneNumberId: e.target.value }))}
-              error={fieldErrors?.phoneNumberId}
-            />
-            <Input
-              label="WhatsApp Business Account ID (opcional)"
-              value={meta.businessAccountId}
-              onChange={(e) => setMeta((prev) => ({ ...prev, businessAccountId: e.target.value }))}
-              error={fieldErrors?.businessAccountId}
-            />
-            <Input
-              label="App Secret (opcional, valida assinatura dos webhooks)"
-              type="password"
-              value={meta.appSecret}
-              onChange={(e) => setMeta((prev) => ({ ...prev, appSecret: e.target.value }))}
-              error={fieldErrors?.appSecret}
-              className="sm:col-span-2"
-            />
+      {isPlatformAdmin && (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={provider === "meta" ? "primary" : "secondary"}
+              onClick={() => setProvider("meta")}
+            >
+              Meta Cloud API
+            </Button>
+            <Button
+              type="button"
+              variant={provider === "twilio" ? "primary" : "secondary"}
+              onClick={() => setProvider("twilio")}
+            >
+              Twilio
+            </Button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input
-              label="Account SID"
-              value={twilio.accountSid}
-              onChange={(e) => setTwilio((prev) => ({ ...prev, accountSid: e.target.value }))}
-              error={fieldErrors?.accountSid}
-            />
-            <Input
-              label="Auth Token"
-              type="password"
-              value={twilio.authToken}
-              onChange={(e) => setTwilio((prev) => ({ ...prev, authToken: e.target.value }))}
-              error={fieldErrors?.authToken}
-            />
-            <Input
-              label="Número do WhatsApp (ex: +14155238886)"
-              value={twilio.whatsappNumber}
-              onChange={(e) => setTwilio((prev) => ({ ...prev, whatsappNumber: e.target.value }))}
-              error={fieldErrors?.whatsappNumber}
-              className="sm:col-span-2"
-            />
+  
+          {provider === "meta" ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                label="Token de acesso permanente"
+                type="password"
+                value={meta.token}
+                onChange={(e) => setMeta((prev) => ({ ...prev, token: e.target.value }))}
+                error={fieldErrors?.token}
+                className="sm:col-span-2"
+              />
+              <Input
+                label="Phone Number ID"
+                value={meta.phoneNumberId}
+                onChange={(e) => setMeta((prev) => ({ ...prev, phoneNumberId: e.target.value }))}
+                error={fieldErrors?.phoneNumberId}
+              />
+              <Input
+                label="WhatsApp Business Account ID (opcional)"
+                value={meta.businessAccountId}
+                onChange={(e) => setMeta((prev) => ({ ...prev, businessAccountId: e.target.value }))}
+                error={fieldErrors?.businessAccountId}
+              />
+              <Input
+                label="App Secret (opcional, valida assinatura dos webhooks)"
+                type="password"
+                value={meta.appSecret}
+                onChange={(e) => setMeta((prev) => ({ ...prev, appSecret: e.target.value }))}
+                error={fieldErrors?.appSecret}
+                className="sm:col-span-2"
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                label="Account SID"
+                value={twilio.accountSid}
+                onChange={(e) => setTwilio((prev) => ({ ...prev, accountSid: e.target.value }))}
+                error={fieldErrors?.accountSid}
+              />
+              <Input
+                label="Auth Token"
+                type="password"
+                value={twilio.authToken}
+                onChange={(e) => setTwilio((prev) => ({ ...prev, authToken: e.target.value }))}
+                error={fieldErrors?.authToken}
+              />
+              <Input
+                label="Número do WhatsApp (ex: +14155238886)"
+                value={twilio.whatsappNumber}
+                onChange={(e) => setTwilio((prev) => ({ ...prev, whatsappNumber: e.target.value }))}
+                error={fieldErrors?.whatsappNumber}
+                className="sm:col-span-2"
+              />
+            </div>
+          )}
+  
+          <div>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Salvando..." : "Salvar integração"}
+            </Button>
           </div>
-        )}
-
-        <div>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Salvando..." : "Salvar integração"}
-          </Button>
-        </div>
-      </form>
+        </form>
+      )}
     </section>
   );
 }
