@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { ArrowRight, Menu, MessageCircle, Play, ShoppingBag, X, Zap } from "lucide-react";
 import { PRICING } from "@/lib/marketing-config";
 import { CTA, Eyebrow, Logo } from "./primitives";
 import { Bubble, ChatHeader, ProductCard, Typing, Window } from "./mockups";
 
 const links = [
-  ["Como funciona", "#como-funciona"],
-  ["Funcionalidades", "#funcionalidades"],
-  ["Demonstração", "#demonstracao"],
-  ["Diferenciais", "#diferenciais"],
-  ["Planos", "#planos"],
+  ["Como funciona", "/#como-funciona"],
+  ["Funcionalidades", "/#funcionalidades"],
+  ["Demonstração", "/#demonstracao"],
+  ["Diferenciais", "/#diferenciais"],
+  ["Planos", "/#planos"],
 ] as const;
 
 export function Nav() {
@@ -26,7 +27,7 @@ export function Nav() {
   return (
     <header className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${scrolled || open ? "glass border-b border-border" : "border-b border-transparent"}`}>
       <nav className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-5 sm:px-8 xl:gap-8" aria-label="Principal">
-        <a href="#topo" aria-label="Donnabot, início"><Logo /></a>
+        <Link href="/" aria-label="Donnabot, início"><Logo /></Link>
         <ul className="hidden items-center gap-5 lg:flex xl:gap-7">
           {links.map(([l, h]) => (
             <li key={h}><a href={h} className="whitespace-nowrap text-sm text-muted-foreground transition-colors hover:text-foreground">{l}</a></li>
@@ -34,7 +35,7 @@ export function Nav() {
         </ul>
         <div className="ml-auto hidden items-center gap-2 lg:flex">
           <a href="/login" className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">Entrar</a>
-          <CTA href="#cadastro" className="h-10 whitespace-nowrap px-5">Começar gratuitamente</CTA>
+          <CTA href="/signup" className="h-10 whitespace-nowrap px-5">Começar gratuitamente</CTA>
         </div>
         <button className="ml-auto grid size-10 place-items-center rounded-full border border-border lg:hidden" onClick={() => setOpen(!open)} aria-expanded={open} aria-label="Abrir menu">
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -47,7 +48,7 @@ export function Nav() {
           ))}
           <div className="mt-3 grid gap-2">
             <CTA href="/login" variant="ghost">Entrar</CTA>
-            <CTA href="#cadastro">Começar gratuitamente</CTA>
+            <CTA href="/signup">Começar gratuitamente</CTA>
           </div>
         </div>
       )}

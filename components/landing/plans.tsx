@@ -110,7 +110,17 @@ const inputClass =
   "h-12 w-full rounded-xl border border-input bg-background/60 px-4 text-sm outline-hidden transition-colors focus:border-primary/60 focus:ring-3 focus:ring-primary/20";
 
 /** Formulário de cadastro real: envia para o mesmo cadastro da página /signup. */
-function Signup({ plan, setPlan, error }: { plan: Plan; setPlan: (plan: Plan) => void; error?: string }) {
+function Signup({
+  plan,
+  setPlan,
+  error,
+  origin,
+}: {
+  plan: Plan;
+  setPlan: (plan: Plan) => void;
+  error?: string;
+  origin: "landing" | "signup";
+}) {
   return (
     <section id="cadastro" className="py-24 sm:py-32">
       <div className="mx-auto grid max-w-6xl gap-12 px-5 sm:px-8 lg:grid-cols-2 lg:items-center">
@@ -143,7 +153,7 @@ function Signup({ plan, setPlan, error }: { plan: Plan; setPlan: (plan: Plan) =>
           </p>
         </div>
         <form action={signupAction} className="reveal rounded-3xl border border-border bg-card/60 p-6 shadow-elegant sm:p-8">
-          <input type="hidden" name="origin" value="landing" />
+          <input type="hidden" name="origin" value={origin} />
           <input type="hidden" name="plan" value={plan} />
           {fields.map(([name, label, type, autoComplete]) => (
             <label key={name} className="mb-4 block">
@@ -196,12 +206,12 @@ function Signup({ plan, setPlan, error }: { plan: Plan; setPlan: (plan: Plan) =>
 }
 
 /** Planos + cadastro dividem o plano escolhido (clicar num card já marca no formulário). */
-export function PlansAndSignup({ error }: { error?: string }) {
+export function PlansAndSignup({ error, origin = "landing" }: { error?: string; origin?: "landing" | "signup" }) {
   const [plan, setPlan] = useState<Plan>("yearly");
   return (
     <>
       <Pricing onPick={setPlan} />
-      <Signup plan={plan} setPlan={setPlan} error={error} />
+      <Signup plan={plan} setPlan={setPlan} error={error} origin={origin} />
     </>
   );
 }

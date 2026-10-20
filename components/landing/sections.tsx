@@ -161,13 +161,39 @@ const faq: [string, string][] = [
   ["Como faço para começar?", "Crie sua conta, escolha o plano e fale com a gente para preparar sua loja. Leva poucos minutos."],
 ];
 
-export function FAQ() {
+// Só na página /duvidas, além das de cima.
+const faqExtra: [string, string][] = [
+  [
+    "Funciona no WhatsApp que eu já uso no celular?",
+    "Sim, se for o WhatsApp Business: você continua usando o app no celular normalmente e a Donna atende pelo mesmo número. Quem usa o WhatsApp comum precisa migrar para o WhatsApp Business antes (é grátis e mantém as conversas). Também dá para usar um número novo só para a Donna.",
+  ],
+  [
+    "E se eu responder o cliente pelo celular?",
+    "A Donna percebe e fica em silêncio naquela conversa, para vocês não responderem ao mesmo tempo. Se ninguém da loja responder em 2 horas, ela volta a atender quando o cliente escrever de novo.",
+  ],
+  [
+    "Preciso saber programar ou mexer em código?",
+    "Não. Você conecta o WhatsApp em um clique, autorizando pela sua conta da Meta (a mesma empresa do WhatsApp), e cadastra seus produtos no painel ou por planilha.",
+  ],
+  [
+    "Meus dados e os dos meus clientes ficam seguros?",
+    "Sim. Senhas e credenciais ficam criptografadas, os dados de uma loja nunca são compartilhados com outra e você pode pedir a exclusão a qualquer momento. Veja a Política de Privacidade.",
+  ],
+  [
+    "Quanto tempo leva para minha loja ficar no ar?",
+    "Normalmente no mesmo dia em que confirmamos o plano: o cadastro é liberado pela nossa equipe, que ajuda a conectar o WhatsApp e cadastrar os produtos.",
+  ],
+  ["Tem fidelidade?", "Não. Você pode cancelar quando quiser pelo nosso e-mail de contato."],
+];
+
+export function FAQ({ all = false }: { all?: boolean }) {
+  const items = all ? [...faq, ...faqExtra] : faq;
   return (
     <section id="duvidas" className="py-24 sm:py-32">
       <div className="mx-auto max-w-3xl px-5 sm:px-8">
         <SectionHead eyebrow="Dúvidas" title="Perguntas frequentes" />
         <div className="reveal mt-12 space-y-3">
-          {faq.map(([q, a]) => (
+          {items.map(([q, a]) => (
             <details
               key={q}
               name="faq"
@@ -186,7 +212,8 @@ export function FAQ() {
   );
 }
 
-export function FinalCTA() {
+/** `href`: na página inicial rola até o formulário; nas outras páginas vai para /signup. */
+export function FinalCTA({ href = "#cadastro" }: { href?: string }) {
   return (
     <section className="px-5 pb-24 sm:px-8">
       <div className="reveal relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] border border-primary/25 bg-surface px-6 py-20 text-center sm:px-16">
@@ -199,7 +226,7 @@ export function FinalCTA() {
           <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
             Conheça uma nova forma de vender capinhas, carregadores e acessórios pelo WhatsApp.
           </p>
-          <CTA href="#cadastro" className="mt-9">
+          <CTA href={href} className="mt-9">
             Começar gratuitamente <ArrowRight className="size-4" />
           </CTA>
           <p className="mt-4 text-sm text-muted-foreground">{PRICING.trialDays} dias grátis para testar</p>
@@ -210,10 +237,10 @@ export function FinalCTA() {
 }
 
 const footerLinks: [string, string][] = [
-  ["Como funciona", "#como-funciona"],
-  ["Demonstração", "#demonstracao"],
-  ["Planos", "#planos"],
-  ["Dúvidas", "#duvidas"],
+  ["Como funciona", "/#como-funciona"],
+  ["Demonstração", "/#demonstracao"],
+  ["Planos", "/#planos"],
+  ["Dúvidas", "/duvidas"],
   ["Entrar", "/login"],
 ];
 
