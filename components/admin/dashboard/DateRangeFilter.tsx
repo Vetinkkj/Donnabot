@@ -13,7 +13,7 @@ function formatKey(key: string) {
 }
 
 /**
- * Atalhos de período (Hoje, 7/30/90 dias, Este mês, Mês passado, Este ano) +
+ * Atalhos de período (Hoje, Ontem, 7/30 dias, Este mês, Mês passado, Este ano) +
  * "Personalizado": duas datas no calendário (qualquer dia, mês e ano). Tudo
  * vira parâmetro na URL (?periodo=… ou ?de=…&ate=…), então o link é
  * compartilhável e o botão voltar do navegador funciona.

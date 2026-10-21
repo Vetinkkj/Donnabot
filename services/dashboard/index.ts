@@ -37,9 +37,9 @@ function addDays(key: string, amount: number): string {
 
 export const DASHBOARD_PRESETS = [
   { id: "hoje", label: "Hoje" },
+  { id: "ontem", label: "Ontem" },
   { id: "7d", label: "7 dias" },
   { id: "30d", label: "30 dias" },
-  { id: "90d", label: "90 dias" },
   { id: "mes", label: "Este mês" },
   { id: "mes-passado", label: "Mês passado" },
   { id: "ano", label: "Este ano" },
@@ -55,8 +55,10 @@ function presetRange(id: DashboardPresetId, today: string): { from: string; to: 
       return { from: today, to: today };
     case "7d":
       return { from: addDays(today, -6), to: today };
-    case "90d":
-      return { from: addDays(today, -89), to: today };
+    case "ontem": {
+      const yesterday = addDays(today, -1);
+      return { from: yesterday, to: yesterday };
+    }
     case "mes":
       return { from: `${year}-${month}-01`, to: today };
     case "mes-passado": {
