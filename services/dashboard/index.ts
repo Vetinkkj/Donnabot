@@ -9,7 +9,9 @@ import { listProducts } from "@/services/stock";
  * - Faturamento / pedidos pagos: pela data do pagamento (Payment.paidAt) —
  *   inclui os pedidos marcados como pagos manualmente pelo atendente.
  * - Conversas: conversas que receberam ao menos uma mensagem do cliente.
- * - Carrinhos finalizados: pedidos criados (qualquer status).
+ * - Funil: conta CLIENTES distintos em cada etapa (conversou → finalizou
+ *   carrinho → pagou). Contar pedidos fazia "carrinhos" passar de
+ *   "conversas", porque o mesmo cliente fecha vários pedidos na mesma conversa.
  */
 
 export const DASHBOARD_PERIODS = [7, 30, 90] as const;
@@ -31,6 +33,21 @@ function percentChange(current: number, previous: number): number | null {
   return ((current - previous) / previous) * 100;
 }
 
+/**
+ * Etapas acumulativas: quem pagou também finalizou carrinho, e quem finalizou
+ * também conversou — mesmo que a mensagem tenha sido antes do período.
+ * Assim cada etapa nunca passa da anterior.
+ */
+function funnelStages(talked: Set<string>, finalized: Set<string>, paid: Set<string>) {
+  const finalizedAll = new Set([...finalized, ...paid]);
+  const talkedAll = new Set([...talked, ...finalizedAll]);
+  return [
+    { label: "Clientes que conversaram", value: talkedAll.size },
+    { label: "Finalizaram o carrinho", value: finalizedAll.size },
+    { label: "Pagaram", value: paid.size },
+  ];
+}
+
 export type DashboardOverview = Awaited<ReturnType<typeof getDashboardOverview>>;
 
 export async function getDashboardOverview(storeId: string, days: DashboardPeriod) {
@@ -40,8 +57,7 @@ export async function getDashboardOverview(storeId: string, days: DashboardPerio
 
   const [
     paidOrders,
-    cartsCurrent,
-    cartsPrevious,
+    cartCustomers,
     conversationsCurrent,
     conversationsPrevious,
     newCustomersCurrent,
@@ -57,15 +73,19 @@ export async function getDashboardOverview(storeId: string, days: DashboardPerio
       where: { storeId, status: "PAID", payment: { paidAt: { gte: previousStart } } },
       select: {
         total: true,
+        customerId: true,
         payment: { select: { paidAt: true } },
         items: { select: { productId: true, quantity: true, subtotal: true, product: { select: { name: true } } } },
       },
     }),
-    db.order.count({ where: { storeId, createdAt: { gte: start } } }),
-    db.order.count({ where: { storeId, createdAt: { gte: previousStart, lt: start } } }),
-    db.message.groupBy({
-      by: ["conversationId"],
-      where: { direction: "IN", createdAt: { gte: start }, conversation: { storeId } },
+    db.order.findMany({
+      where: { storeId, createdAt: { gte: start } },
+      distinct: ["customerId"],
+      select: { customerId: true },
+    }),
+    db.conversation.findMany({
+      where: { storeId, messages: { some: { direction: "IN", createdAt: { gte: start } } } },
+      select: { customerId: true },
     }),
     db.message.groupBy({
       by: ["conversationId"],
@@ -98,6 +118,8 @@ export async function getDashboardOverview(storeId: string, days: DashboardPerio
   let paidCurrent = 0;
   let paidPrevious = 0;
   const productTotals = new Map<string, { name: string; revenue: number; quantity: number }>();
+  const payingCustomers = new Set<string>();
+  const payingCustomersPrevious = new Set<string>();
 
   for (const order of paidOrders) {
     const paidAt = order.payment?.paidAt;
@@ -107,6 +129,7 @@ export async function getDashboardOverview(storeId: string, days: DashboardPerio
     if (paidAt >= start) {
       revenueCurrent += total;
       paidCurrent += 1;
+      payingCustomers.add(order.customerId);
       const point = seriesByDay.get(dayKey(paidAt));
       if (point) {
         point.revenue += total;
@@ -121,14 +144,24 @@ export async function getDashboardOverview(storeId: string, days: DashboardPerio
     } else {
       revenuePrevious += total;
       paidPrevious += 1;
+      payingCustomersPrevious.add(order.customerId);
     }
   }
 
   const ticketCurrent = paidCurrent ? revenueCurrent / paidCurrent : 0;
   const ticketPrevious = paidPrevious ? revenuePrevious / paidPrevious : 0;
   const conversationCount = conversationsCurrent.length;
-  const conversionCurrent = conversationCount ? (paidCurrent / conversationCount) * 100 : 0;
-  const conversionPrevious = conversationsPrevious.length ? (paidPrevious / conversationsPrevious.length) * 100 : 0;
+  const funnel = funnelStages(
+    new Set(conversationsCurrent.map((c) => c.customerId)),
+    new Set(cartCustomers.map((c) => c.customerId)),
+    payingCustomers,
+  );
+  // Conversão = clientes que pagaram ÷ clientes que conversaram (a mesma conta do funil, nunca passa de 100%).
+  const conversionCurrent = funnel[0].value ? (funnel[2].value / funnel[0].value) * 100 : 0;
+  const talkedPrevious = conversationsPrevious.length;
+  const conversionPrevious = talkedPrevious
+    ? (Math.min(payingCustomersPrevious.size, talkedPrevious) / talkedPrevious) * 100
+    : 0;
 
   return {
     days,
@@ -142,12 +175,7 @@ export async function getDashboardOverview(storeId: string, days: DashboardPerio
       newCustomers: { value: newCustomersCurrent, change: percentChange(newCustomersCurrent, newCustomersPrevious) },
     },
     series: series.map((point) => ({ ...point, revenue: Math.round(point.revenue * 100) / 100 })),
-    funnel: [
-      { label: "Conversas", value: conversationCount },
-      { label: "Carrinhos finalizados", value: cartsCurrent },
-      { label: "Pedidos pagos", value: paidCurrent },
-    ],
-    cartsPreviousPeriod: cartsPrevious,
+    funnel,
     topProducts: [...productTotals.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 5),
     now: { waitingHuman, withHuman, pendingOrders, lowStockCount: lowStock.length, productsCount },
     lowStock: lowStock.slice(0, 5).map((product) => ({

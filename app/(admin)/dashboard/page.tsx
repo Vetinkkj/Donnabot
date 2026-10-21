@@ -192,7 +192,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         />
         <Kpi
           icon={ShoppingCart}
-          label="Conversão (conversa → pedido pago)"
+          label="Conversão (clientes que pagaram)"
           value={`${decimal.format(kpis.conversion.value)}%`}
           delta={<Delta change={kpis.conversion.changePoints} unit=" p.p." />}
         />
@@ -204,7 +204,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card title="Funil de vendas" subtitle="Do primeiro contato no WhatsApp até o pagamento">
+        <Card title="Funil de vendas" subtitle="Clientes em cada etapa, do WhatsApp até o pagamento">
           <FunnelChart stages={data.funnel} />
         </Card>
         <Card

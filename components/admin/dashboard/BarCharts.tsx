@@ -15,14 +15,15 @@ const FUNNEL_COLORS = ["var(--viz-funnel-1)", "var(--viz-funnel-2)", "var(--viz-
  */
 export function FunnelChart({ stages }: { stages: { label: string; value: number }[] }) {
   const [hovered, setHovered] = useState<number | null>(null);
-  const top = Math.max(stages[0]?.value ?? 0, 1);
+  // Escala pelo maior valor (não pela 1ª etapa) e largura travada em 100%: a barra nunca sai do card.
+  const top = Math.max(...stages.map((s) => s.value), 1);
 
   return (
     <div className="flex flex-col gap-4">
       {stages.map((stage, i) => {
         const previous = i > 0 ? stages[i - 1].value : null;
-        const fromPrevious = previous ? (stage.value / previous) * 100 : null;
-        const ofTop = (stage.value / top) * 100;
+        const fromPrevious = previous ? Math.min((stage.value / previous) * 100, 100) : null;
+        const ofTop = Math.min((stage.value / top) * 100, 100);
         return (
           <div
             key={stage.label}
@@ -34,7 +35,7 @@ export function FunnelChart({ stages }: { stages: { label: string; value: number
               <span className="text-zinc-700 dark:text-zinc-300">{stage.label}</span>
               <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{stage.value}</span>
             </div>
-            <div className="h-7 w-full rounded bg-zinc-100 dark:bg-zinc-800/70">
+            <div className="h-7 w-full overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800/70">
               <div
                 className="h-full rounded transition-[filter] duration-150"
                 style={{
@@ -46,14 +47,15 @@ export function FunnelChart({ stages }: { stages: { label: string; value: number
             </div>
             {fromPrevious !== null && (
               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                {percent.format(fromPrevious)}% de {stages[i - 1].label.toLowerCase()}
+                {percent.format(fromPrevious)}% da etapa anterior
               </p>
             )}
             {hovered === i && (
               <div className="pointer-events-none absolute -top-2 right-0 z-10 -translate-y-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs shadow-md dark:border-zinc-700 dark:bg-zinc-900">
                 <p className="font-medium text-zinc-900 dark:text-zinc-50">{stage.label}</p>
                 <p className="text-zinc-600 dark:text-zinc-300">
-                  {stage.value} • {percent.format(ofTop)}% de {stages[0].label.toLowerCase()}
+                  {stage.value} {stage.value === 1 ? "cliente" : "clientes"}
+                  {i > 0 && stages[0].value > 0 && ` • ${percent.format(Math.min((stage.value / stages[0].value) * 100, 100))}% de quem conversou`}
                 </p>
               </div>
             )}
