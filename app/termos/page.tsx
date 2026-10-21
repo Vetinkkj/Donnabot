@@ -70,6 +70,10 @@ export default function TermosPage() {
             Business), o Código de Defesa do Consumidor e a LGPD.
           </li>
           <li>
+            Conectar um número de WhatsApp próprio, regular e já em uso no WhatsApp Business há pelo menos 7 dias,
+            com perfil comercial completo.
+          </li>
+          <li>
             Não usar o serviço para spam, mensagens a quem não autorizou contato, produtos proibidos ou qualquer
             finalidade ilegal.
           </li>
@@ -83,6 +87,14 @@ export default function TermosPage() {
           {BRAND_NAME} não controla esses serviços e não responde por indisponibilidades, mudanças de regras, limites
           ou bloqueios aplicados por eles, inclusive bloqueios do número da Loja causados pelo descumprimento das
           políticas do WhatsApp.
+        </p>
+        <p className="mt-3">
+          A Loja é a única responsável pelo uso do seu número de WhatsApp. A {BRAND_NAME} não responde por
+          restrições, suspensões ou banimentos do número decididos pela Meta, em especial os causados por uso fora da
+          plataforma (como disparos em massa, listas de transmissão, ferramentas não oficiais ou mensagens a quem não
+          autorizou contato), por denúncias de clientes ou pela conexão de número recém-criado. Nesses casos, a{" "}
+          {BRAND_NAME} vai orientar a Loja no pedido de análise junto à Meta, mas não garante a reversão do bloqueio,
+          e o bloqueio não gera direito a indenização nem a reembolso fora do prazo de garantia.
         </p>
       </LegalSection>
 

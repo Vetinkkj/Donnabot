@@ -9,7 +9,7 @@ export const LEGAL_NAME = "Balbitech";
 export const LEGAL_CNPJ = "";
 
 // Data exibida no topo de Termos, Privacidade e Exclusão de dados.
-export const LEGAL_UPDATED_AT = "20 de outubro de 2026";
+export const LEGAL_UPDATED_AT = "21 de outubro de 2026";
 
 export const CONTACT_EMAIL = "contatodonnabot@gmail.com";
 

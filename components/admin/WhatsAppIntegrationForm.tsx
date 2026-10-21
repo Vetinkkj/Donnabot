@@ -140,6 +140,14 @@ export function WhatsAppIntegrationForm({
           <p className="text-xs text-zinc-500">
             Conecte o WhatsApp da loja em um clique, direto pela Meta (recomendado):
           </p>
+          <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+            <p className="font-semibold">Antes de conectar</p>
+            <p className="mt-1">
+              Use um número que já esteja em uso no WhatsApp Business há pelo menos 7 dias, com perfil comercial
+              completo (foto, nome e descrição da loja). WhatsApp criado no mesmo dia e conectado logo em seguida pode
+              ser bloqueado automaticamente pela Meta.
+            </p>
+          </div>
           <MetaEmbeddedSignupButton
             appId={embeddedSignup.appId}
             configId={embeddedSignup.configId}
