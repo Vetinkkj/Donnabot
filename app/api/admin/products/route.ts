@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { productInputSchema } from "@/lib/validations/product";
 import { createProduct, listProducts, type StockStatus } from "@/services/stock";
 
@@ -12,7 +12,7 @@ const VALID_STOCK_STATUS: (StockStatus | "all")[] = [
 
 export async function GET(request: NextRequest) {
   try {
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const { searchParams } = new URL(request.url);
 
     const search = searchParams.get("search") ?? undefined;
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const body = await request.json();
     const parsed = productInputSchema.safeParse(body);
 

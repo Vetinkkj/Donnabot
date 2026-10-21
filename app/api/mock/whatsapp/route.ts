@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { mocksEnabled } from "@/lib/mocks";
 import { getCurrentStoreId } from "@/lib/current-store";
 import { getConversationHistory, handleIncomingMessage } from "@/services/conversation";
 
@@ -18,6 +19,7 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  if (!mocksEnabled()) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
   try {
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);
@@ -44,6 +46,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  if (!mocksEnabled()) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
   try {
     const { searchParams } = new URL(request.url);
     const phone = searchParams.get("phone");

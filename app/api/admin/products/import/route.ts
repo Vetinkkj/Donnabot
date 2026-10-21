@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { importProducts } from "@/services/stock";
 
 const rowSchema = z.object({
@@ -23,7 +23,7 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);
 

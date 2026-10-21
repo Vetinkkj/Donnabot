@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { listCategories } from "@/services/stock";
 
 export async function GET() {
   try {
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const categories = await listCategories(storeId);
     return NextResponse.json({ data: categories });
   } catch (error) {

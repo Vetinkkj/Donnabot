@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { db } from "@/lib/db";
 
 /**
@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
  */
 export async function GET() {
   try {
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const waiting = await db.conversation.findMany({
       where: { storeId, status: "WAITING_HUMAN" },
       select: { id: true, customer: { select: { name: true, whatsappPhone: true } } },

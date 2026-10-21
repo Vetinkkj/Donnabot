@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getCurrentStoreId } from "@/lib/current-store";
+import { mocksEnabled } from "@/lib/mocks";
 import { createPixCharge } from "@/services/payment";
 import { Badge } from "@/components/ui/Badge";
 import { ApproveButton } from "@/components/payment/ApproveButton";
@@ -14,6 +15,7 @@ const STATUS_LABEL: Record<string, { label: string; tone: "success" | "warning" 
 };
 
 export default async function MockPaymentPage({ params }: { params: Promise<{ orderId: string }> }) {
+  if (!mocksEnabled()) notFound();
   const { orderId } = await params;
   const storeId = await getCurrentStoreId();
   const result = await createPixCharge(storeId, orderId);

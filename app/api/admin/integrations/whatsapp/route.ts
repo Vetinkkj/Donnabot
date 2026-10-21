@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { saveWhatsAppIntegrationSchema } from "@/lib/validations/integrations";
 import {
   getStoreIntegrationsStatus,
@@ -22,7 +22,7 @@ async function forbidUnlessPlatformAdmin() {
 
 export async function GET() {
   try {
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const status = await getStoreIntegrationsStatus(storeId);
     return NextResponse.json({ data: status });
   } catch (error) {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const forbidden = await forbidUnlessPlatformAdmin();
     if (forbidden) return forbidden;
 
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const body = await request.json();
     const parsed = saveWhatsAppIntegrationSchema.safeParse(body);
 
@@ -81,7 +81,7 @@ export async function DELETE() {
     const forbidden = await forbidUnlessPlatformAdmin();
     if (forbidden) return forbidden;
 
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     await removeWhatsAppIntegration(storeId);
     const status = await getStoreIntegrationsStatus(storeId);
     return NextResponse.json({ data: status });

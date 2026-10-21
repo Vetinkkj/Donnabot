@@ -75,8 +75,11 @@ function extractMessageText(message: MetaIncomingMessage): string | undefined {
 }
 
 function isSignatureValid(rawBody: string, signatureHeader: string | null): boolean {
-  const secret = process.env.WHATSAPP_APP_SECRET;
-  if (!secret) return true; // sem segredo configurado, pula validação (ambiente de dev/mock)
+  // A Meta assina com o segredo do app — o mesmo META_APP_SECRET do Embedded Signup.
+  const secret = process.env.WHATSAPP_APP_SECRET || process.env.META_APP_SECRET;
+  // Sem segredo só em dev/mock; em produção, recusa tudo (senão qualquer um
+  // poderia forjar mensagens de clientes e fazer a Donna responder).
+  if (!secret) return process.env.NODE_ENV !== "production";
   if (!signatureHeader?.startsWith("sha256=")) return false;
 
   const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
@@ -101,7 +104,15 @@ export async function POST(request: NextRequest) {
       for (const change of entry.changes ?? []) {
         const phoneNumberId = change.value?.metadata?.phone_number_id;
         const store = phoneNumberId ? await getStoreByWhatsappPhoneNumberId(phoneNumberId) : null;
-        const storeId = store?.id ?? (await getCurrentStoreId());
+        // Número sem loja só cai na loja padrão se for o número global do .env
+        // (modo single-store). Qualquer outro é ignorado: nunca misturar a
+        // conversa de um número desconhecido com os dados de outra loja.
+        const isDefaultNumber = !!phoneNumberId && phoneNumberId === process.env.WHATSAPP_PHONE_NUMBER_ID;
+        const storeId = store?.id ?? (isDefaultNumber ? await getCurrentStoreId() : null);
+        if (!storeId) {
+          console.warn("[POST /api/webhooks/whatsapp] phone_number_id sem loja, ignorado:", phoneNumberId);
+          continue;
+        }
 
         const messages = change.value?.messages ?? [];
         const contacts = change.value?.contacts ?? [];

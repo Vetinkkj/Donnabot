@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { META_GRAPH_URL } from "@/lib/meta";
 import { getStoreIntegrationsStatus, saveMetaIntegration } from "@/services/store";
 
@@ -81,7 +81,7 @@ async function exchangeCodeForToken(code: string, appId: string, appSecret: stri
 
 export async function POST(request: NextRequest) {
   try {
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const { code, phoneNumberId: capturedPhoneNumberId, wabaId: capturedWabaId, mode } = await request.json();
     const signupMode: SignupMode = mode === "business_app" ? "business_app" : "new_number";
 

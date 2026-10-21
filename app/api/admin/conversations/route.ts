@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { listConversations, type ConversationStatusFilter } from "@/services/conversation";
 
 const VALID_STATUSES: ConversationStatusFilter[] = ["all", "BOT", "WAITING_HUMAN", "HUMAN"];
 
 export async function GET(request: NextRequest) {
   try {
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get("status") ?? "all";
     const status = VALID_STATUSES.includes(statusParam as ConversationStatusFilter)

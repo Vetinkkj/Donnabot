@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { mocksEnabled } from "@/lib/mocks";
 import { getCurrentStoreId } from "@/lib/current-store";
 import { confirmOrderPayment } from "@/services/payment";
 
@@ -8,6 +9,7 @@ import { confirmOrderPayment } from "@/services/payment";
  * avisa o cliente pelo WhatsApp (mock).
  */
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
+  if (!mocksEnabled()) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
   try {
     const { orderId } = await params;
     const storeId = await getCurrentStoreId();

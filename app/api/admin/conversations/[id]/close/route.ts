@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { closeConversation } from "@/services/conversation";
 
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
 
     const conversation = await closeConversation(storeId, id);
     if (!conversation) return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });

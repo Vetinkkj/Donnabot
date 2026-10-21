@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { mocksEnabled } from "@/lib/mocks";
 import { getCurrentStoreId } from "@/lib/current-store";
 import { createPixCharge } from "@/services/payment";
 
@@ -8,6 +9,7 @@ import { createPixCharge } from "@/services/payment";
  * também /mock-payment/[orderId] para uma versão visual com QR Code.
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
+  if (!mocksEnabled()) return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
   try {
     const { orderId } = await params;
     const storeId = await getCurrentStoreId();

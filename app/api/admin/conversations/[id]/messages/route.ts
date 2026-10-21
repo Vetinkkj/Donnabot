@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { sendAgentMessage } from "@/services/conversation";
 
-const bodySchema = z.object({ text: z.string().trim().min(1, "Mensagem não pode ser vazia") });
+const bodySchema = z.object({ text: z.string().trim().min(1, "Mensagem não pode ser vazia").max(4096, "Mensagem longa demais") });
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);
 

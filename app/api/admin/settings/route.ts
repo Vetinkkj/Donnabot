@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { storeSettingsSchema } from "@/lib/validations/store";
 import { getStoreSettings, updateStoreSettings } from "@/services/store";
 
 export async function GET() {
   try {
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const store = await getStoreSettings(storeId);
     return NextResponse.json({ data: store });
   } catch (error) {
@@ -16,7 +16,7 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const body = await request.json();
     const parsed = storeSettingsSchema.safeParse(body);
 

@@ -24,7 +24,8 @@ const bodySchema = z.object({
 
 function isSignatureValid(rawBody: string, signature: string | null): boolean {
   const secret = process.env.WEBHOOK_SECRET;
-  if (!secret) return true; // sem segredo configurado, pula validação (ambiente de dev)
+  // Sem segredo só em dev; em produção, recusa (senão qualquer um marcaria pedidos como pagos).
+  if (!secret) return process.env.NODE_ENV !== "production";
   if (!signature) return false;
 
   const expected = createHmac("sha256", secret).update(rawBody).digest("hex");

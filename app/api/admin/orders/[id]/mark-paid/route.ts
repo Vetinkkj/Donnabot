@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { confirmOrderPayment } from "@/services/payment";
 
 /**
@@ -10,7 +10,7 @@ import { confirmOrderPayment } from "@/services/payment";
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
 
     const result = await confirmOrderPayment(storeId, id);
     if (!result.ok) {

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { getDashboardStats } from "@/services/orders";
 
 export async function GET() {
   try {
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const stats = await getDashboardStats(storeId);
     return NextResponse.json({ data: stats });
   } catch (error) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { productUpdateSchema } from "@/lib/validations/product";
 import { deleteProduct, getProduct, updateProduct } from "@/services/stock";
 
@@ -8,7 +8,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 export async function GET(_request: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
 
     const product = await getProduct(storeId, id);
     if (!product) {
@@ -25,7 +25,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
     const body = await request.json();
     const parsed = productUpdateSchema.safeParse(body);
 
@@ -54,7 +54,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
 
     const deleted = await deleteProduct(storeId, id);
     if (!deleted) {

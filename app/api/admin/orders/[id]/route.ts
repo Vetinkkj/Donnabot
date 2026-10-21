@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentStoreId } from "@/lib/current-store";
+import { getAdminStoreId } from "@/lib/current-store";
 import { cancelOrder, getOrder, serializeOrder } from "@/services/orders";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
 
     const order = await getOrder(storeId, id);
     if (!order) return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
@@ -20,7 +20,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const storeId = await getCurrentStoreId();
+    const storeId = await getAdminStoreId();
 
     const cancelled = await cancelOrder(storeId, id);
     if (!cancelled) {

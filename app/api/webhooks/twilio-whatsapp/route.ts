@@ -1,4 +1,4 @@
-import { createHmac } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentStoreId } from "@/lib/current-store";
 import { handleIncomingMessage } from "@/services/conversation";
@@ -24,7 +24,8 @@ function isSignatureValid(
   signature: string | null,
   authToken: string | undefined
 ): boolean {
-  if (!authToken) return true; // sem token configurado, pula validação (dev)
+  // Sem token só em dev; em produção, recusa.
+  if (!authToken) return process.env.NODE_ENV !== "production";
   if (!signature) return false;
 
   const sortedData = Object.keys(params)
@@ -32,7 +33,9 @@ function isSignatureValid(
     .reduce((acc, key) => acc + key + params[key], url);
   const expected = createHmac("sha1", authToken).update(sortedData, "utf-8").digest("base64");
 
-  return expected === signature;
+  const expectedBuffer = Buffer.from(expected);
+  const signatureBuffer = Buffer.from(signature);
+  return expectedBuffer.length === signatureBuffer.length && timingSafeEqual(expectedBuffer, signatureBuffer);
 }
 
 export async function POST(request: NextRequest) {
@@ -58,8 +61,11 @@ export async function POST(request: NextRequest) {
     const body = params.Body;
     const name = params.ProfileName;
 
-    if (from && body) {
-      const storeId = store?.id ?? (await getCurrentStoreId());
+    // Número Twilio sem loja só vale se for o número global do .env (sandbox single-store).
+    const bare = (n?: string) => n?.replace("whatsapp:", "");
+    const isDefaultNumber = !!params.To && bare(params.To) === bare(process.env.TWILIO_WHATSAPP_NUMBER);
+    const storeId = store?.id ?? (isDefaultNumber ? await getCurrentStoreId() : null);
+    if (from && body && storeId) {
       await handleIncomingMessage(storeId, from, body, name);
     }
 
