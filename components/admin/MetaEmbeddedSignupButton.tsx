@@ -46,18 +46,22 @@ const FINISH_EVENTS = new Set(["FINISH", "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDIN
 export function MetaEmbeddedSignupButton({ appId, configId, mode, label, onConnected }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
-  const capturedRef = useRef<{ phoneNumberId?: string; wabaId?: string }>({});
+  const capturedRef = useRef<{ phoneNumberId?: string; wabaId?: string; cancelledAt?: string }>({});
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
       if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") return;
       try {
         const data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        if (data?.type === "WA_EMBEDDED_SIGNUP" && FINISH_EVENTS.has(data.event)) {
+        if (data?.type !== "WA_EMBEDDED_SIGNUP") return;
+        console.info("[embedded-signup] evento da Meta:", data.event, data.data);
+        if (FINISH_EVENTS.has(data.event)) {
           capturedRef.current = {
             phoneNumberId: data.data?.phone_number_id,
             wabaId: data.data?.waba_id,
           };
+        } else if (data.event === "CANCEL") {
+          capturedRef.current = { cancelledAt: data.data?.current_step ?? "desconhecida" };
         }
       } catch {
         // mensagens que não são JSON do fluxo de signup — ignora
@@ -125,7 +129,12 @@ export function MetaEmbeddedSignupButton({ appId, configId, mode, label, onConne
       (response) => {
         const code = response.authResponse?.code;
         if (!code) {
-          setError("Conexão cancelada ou sem permissão concedida.");
+          const step = capturedRef.current.cancelledAt;
+          setError(
+            step
+              ? `A janela da Meta foi fechada antes do fim (etapa: ${step}). Tente de novo e vá até o botão final de concluir.`
+              : "Conexão cancelada ou sem permissão concedida."
+          );
           setLoading(false);
           return;
         }

@@ -24,6 +24,32 @@ type SignupMode = "new_number" | "business_app";
 
 class MetaApiError extends Error {}
 
+/** Motivo legível do erro da Meta (vai pra tela do lojista — sem tokens, só a mensagem e o código). */
+function describeMetaError(json: unknown, fallback: string) {
+  const error = (json as { error?: { message?: string; error_user_msg?: string; code?: number } })?.error;
+  const message = error?.error_user_msg || error?.message;
+  return message ? `${message}${error?.code ? ` (código ${error.code})` : ""}` : fallback;
+}
+
+/**
+ * Plano B quando o popup não mandou o waba_id (o evento de fim às vezes não
+ * chega, principalmente na Coexistência): o token da loja só tem acesso ao
+ * WABA que ela acabou de compartilhar, e o debug_token lista esse ID.
+ */
+async function findSharedWabaId(token: string, appId: string, appSecret: string) {
+  const url = new URL(`${META_GRAPH_URL}/debug_token`);
+  url.searchParams.set("input_token", token);
+  url.searchParams.set("access_token", `${appId}|${appSecret}`);
+  const response = await fetch(url.toString());
+  const json = await response.json().catch(() => ({}));
+  const scopes: { scope?: string; target_ids?: string[] }[] = json.data?.granular_scopes ?? [];
+  const ids =
+    scopes.find((s) => s.scope === "whatsapp_business_management")?.target_ids ??
+    scopes.find((s) => s.scope === "whatsapp_business_messaging")?.target_ids;
+  if (!ids?.length) console.error("[embedded-signup] debug_token sem WABA", json);
+  return ids?.[0];
+}
+
 async function graph(path: string, token: string, init?: { method?: string; body?: Record<string, unknown> }) {
   const response = await fetch(`${META_GRAPH_URL}${path}`, {
     method: init?.method ?? "GET",
@@ -33,7 +59,7 @@ async function graph(path: string, token: string, init?: { method?: string; body
   const json = await response.json().catch(() => ({}));
   if (!response.ok) {
     console.error(`[embedded-signup] ${init?.method ?? "GET"} ${path} falhou`, json);
-    throw new MetaApiError(`Meta respondeu ${response.status} em ${path}`);
+    throw new MetaApiError(describeMetaError(json, `Meta respondeu ${response.status} em ${path}`));
   }
   return json;
 }
@@ -48,7 +74,7 @@ async function exchangeCodeForToken(code: string, appId: string, appSecret: stri
   const json = await response.json().catch(() => ({}));
   if (!response.ok || typeof json.access_token !== "string") {
     console.error("[embedded-signup] troca de token falhou", json);
-    throw new MetaApiError("Troca do código por token falhou");
+    throw new MetaApiError(describeMetaError(json, "Troca do código por token falhou"));
   }
   return json.access_token;
 }
@@ -56,19 +82,12 @@ async function exchangeCodeForToken(code: string, appId: string, appSecret: stri
 export async function POST(request: NextRequest) {
   try {
     const storeId = await getCurrentStoreId();
-    const { code, phoneNumberId: capturedPhoneNumberId, wabaId, mode } = await request.json();
+    const { code, phoneNumberId: capturedPhoneNumberId, wabaId: capturedWabaId, mode } = await request.json();
     const signupMode: SignupMode = mode === "business_app" ? "business_app" : "new_number";
 
     if (!code || typeof code !== "string") {
       return NextResponse.json({ error: "Código de autorização ausente" }, { status: 400 });
     }
-    if (!wabaId || typeof wabaId !== "string") {
-      return NextResponse.json(
-        { error: "Não foi possível identificar a conta do WhatsApp conectada — tente novamente" },
-        { status: 400 }
-      );
-    }
-
     const appId = process.env.NEXT_PUBLIC_META_APP_ID;
     const appSecret = process.env.META_APP_SECRET;
     if (!appId || !appSecret) {
@@ -76,6 +95,20 @@ export async function POST(request: NextRequest) {
     }
 
     const token = await exchangeCodeForToken(code, appId, appSecret);
+
+    const wabaId =
+      typeof capturedWabaId === "string" && capturedWabaId
+        ? capturedWabaId
+        : await findSharedWabaId(token, appId, appSecret);
+    if (!wabaId) {
+      return NextResponse.json(
+        {
+          error:
+            "A Meta não informou qual conta do WhatsApp foi conectada. Refaça a conexão e, no final, marque a conta e o número da loja.",
+        },
+        { status: 400 }
+      );
+    }
 
     let phoneNumberId = typeof capturedPhoneNumberId === "string" ? capturedPhoneNumberId : undefined;
     if (!phoneNumberId) {
@@ -108,7 +141,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[POST /api/admin/integrations/whatsapp/embedded-signup]", error);
     const message =
-      error instanceof MetaApiError ? "Não foi possível concluir a conexão com a Meta" : "Erro ao concluir a conexão";
+      error instanceof MetaApiError
+        ? `Não foi possível concluir a conexão com a Meta: ${error.message}`
+        : "Erro ao concluir a conexão";
     return NextResponse.json({ error: message }, { status: error instanceof MetaApiError ? 502 : 500 });
   }
 }
