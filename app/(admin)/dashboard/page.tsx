@@ -15,7 +15,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { getCurrentStoreId } from "@/lib/current-store";
-import { DASHBOARD_PERIODS, getDashboardOverview, type DashboardPeriod } from "@/services/dashboard";
+import { DASHBOARD_PRESETS, getDashboardOverview, resolveDashboardRange } from "@/services/dashboard";
+import { DateRangeFilter } from "@/components/admin/dashboard/DateRangeFilter";
 import { RevenueChart } from "@/components/admin/dashboard/RevenueChart";
 import { FunnelChart, TopProductsChart } from "@/components/admin/dashboard/BarCharts";
 import { Badge } from "@/components/ui/Badge";
@@ -118,39 +119,33 @@ function NowItem({
   );
 }
 
-export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ periodo?: string }> }) {
-  const { periodo } = await searchParams;
-  const days = (DASHBOARD_PERIODS as readonly number[]).includes(Number(periodo)) ? (Number(periodo) as DashboardPeriod) : 30;
+function comparisonText(days: number) {
+  return days === 1 ? "comparado com o dia anterior" : `comparado com os ${days} dias anteriores`;
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ periodo?: string; de?: string; ate?: string }>;
+}) {
+  const range = resolveDashboardRange(await searchParams);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 
   const storeId = await getCurrentStoreId();
-  const data = await getDashboardOverview(storeId, days);
+  const data = await getDashboardOverview(storeId, range);
   const { kpis } = data;
+  const presetLabel = DASHBOARD_PRESETS.find((p) => p.id === range.preset)?.label;
 
   return (
     <div className="dash-viz flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Dashboard</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Últimos {days} dias, comparado com os {days} dias anteriores
+            {presetLabel ?? "Período personalizado"}, {comparisonText(data.range.days)}
           </p>
         </div>
-        <nav aria-label="Período" className="inline-flex rounded-lg border border-zinc-200 bg-white p-1 dark:border-zinc-800 dark:bg-zinc-900">
-          {DASHBOARD_PERIODS.map((option) => (
-            <Link
-              key={option}
-              href={`/dashboard?periodo=${option}`}
-              aria-current={option === days ? "page" : undefined}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                option === days
-                  ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
-                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
-              }`}
-            >
-              {option} dias
-            </Link>
-          ))}
-        </nav>
+        <DateRangeFilter presets={DASHBOARD_PRESETS} active={range.preset} from={range.from} to={range.to} today={today} />
       </div>
 
       <div>
@@ -199,8 +194,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <Kpi icon={UserPlus} label="Clientes novos" value={String(kpis.newCustomers.value)} delta={<Delta change={kpis.newCustomers.change} />} />
       </div>
 
-      <Card title="Faturamento por dia" subtitle="Pedidos marcados como pagos, pela data do pagamento">
-        <RevenueChart data={data.series} />
+      <Card
+        title={data.range.granularity === "month" ? "Faturamento por mês" : "Faturamento por dia"}
+        subtitle="Pedidos marcados como pagos, pela data do pagamento"
+      >
+        <RevenueChart data={data.series} granularity={data.range.granularity} />
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 
-type Point = { day: string; revenue: number; orders: number };
+/** Um ponto por dia ou por mês; `label` vai no eixo e `tooltip` na caixa de detalhes. */
+type Point = { key: string; label: string; tooltip: string; revenue: number; orders: number };
 
 const HEIGHT = 240;
 const PAD = { top: 12, right: 12, bottom: 28, left: 64 };
@@ -14,20 +15,6 @@ const compactCurrency = new Intl.NumberFormat("pt-BR", {
   notation: "compact",
   maximumFractionDigits: 1,
 });
-
-function dayLabel(day: string) {
-  const [, month, date] = day.split("-");
-  return `${date}/${month}`;
-}
-
-function longDayLabel(day: string) {
-  const label = new Date(`${day}T12:00:00-03:00`).toLocaleDateString("pt-BR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-  });
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
 
 /** Escala do eixo y com passos "redondos" (1; 2; 2,5; 5 × 10^n) e ~4 intervalos: rótulos limpos sem desperdiçar altura. */
 function niceScale(value: number) {
@@ -53,7 +40,7 @@ function useWidth<T extends HTMLElement>() {
 }
 
 /** Faturamento por dia: área + linha (uma série), linha-guia e caixa de detalhes ao passar o mouse. */
-export function RevenueChart({ data }: { data: Point[] }) {
+export function RevenueChart({ data, granularity }: { data: Point[]; granularity: "day" | "month" }) {
   const { ref, width } = useWidth<HTMLDivElement>();
   const [hovered, setHovered] = useState<number | null>(null);
 
@@ -79,7 +66,7 @@ export function RevenueChart({ data }: { data: Point[] }) {
   return (
     <div ref={ref} className="relative w-full">
       {width > 0 && (
-        <svg width={width} height={HEIGHT} role="img" aria-label="Faturamento por dia no período">
+        <svg width={width} height={HEIGHT} role="img" aria-label={`Faturamento por ${granularity === "month" ? "mês" : "dia"} no período`}>
           {ticks.map((tick) => (
             <g key={tick}>
               <line
@@ -99,20 +86,24 @@ export function RevenueChart({ data }: { data: Point[] }) {
             // o último dia sempre aparece; o rótulo regular colado nele é pulado para não encavalar
             (i % labelEvery === 0 && data.length - 1 - i >= labelEvery / 2) || i === data.length - 1 ? (
               <text
-                key={d.day}
+                key={d.key}
                 x={x(i)}
                 y={HEIGHT - 8}
                 textAnchor={i === 0 ? "start" : i === data.length - 1 ? "end" : "middle"}
                 fontSize={11}
                 fill="var(--viz-muted)"
               >
-                {dayLabel(d.day)}
+                {d.label}
               </text>
             ) : null,
           )}
 
           <path d={area} fill="var(--viz-series-fill)" />
           <path d={line} fill="none" stroke="var(--viz-series)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          {/* Um ponto só (ex.: "Hoje") não forma linha — mostra o marcador. */}
+          {data.length === 1 && (
+            <circle cx={x(0)} cy={y(data[0].revenue)} r={5} fill="var(--viz-series)" stroke="var(--viz-surface)" strokeWidth={2} />
+          )}
 
           {point && hovered !== null && (
             <g>
@@ -153,7 +144,7 @@ export function RevenueChart({ data }: { data: Point[] }) {
             left: Math.min(Math.max(x(hovered) - 80, 0), Math.max(width - 168, 0)),
           }}
         >
-          <p className="mb-1 font-medium text-zinc-500 dark:text-zinc-400">{longDayLabel(point.day)}</p>
+          <p className="mb-1 font-medium text-zinc-500 dark:text-zinc-400">{point.tooltip}</p>
           <p className="flex items-center justify-between gap-4 text-zinc-900 dark:text-zinc-50">
             <span className="flex items-center gap-1.5">
               <span className="size-2 rounded-full" style={{ background: "var(--viz-series)" }} />
@@ -169,18 +160,18 @@ export function RevenueChart({ data }: { data: Point[] }) {
       )}
 
       <table className="sr-only">
-        <caption>Faturamento por dia</caption>
+        <caption>Faturamento por {granularity === "month" ? "mês" : "dia"}</caption>
         <thead>
           <tr>
-            <th>Dia</th>
+            <th>{granularity === "month" ? "Mês" : "Dia"}</th>
             <th>Faturamento</th>
             <th>Pedidos pagos</th>
           </tr>
         </thead>
         <tbody>
           {data.map((d) => (
-            <tr key={d.day}>
-              <td>{dayLabel(d.day)}</td>
+            <tr key={d.key}>
+              <td>{d.label}</td>
               <td>{currency.format(d.revenue)}</td>
               <td>{d.orders}</td>
             </tr>
