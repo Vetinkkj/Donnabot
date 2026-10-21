@@ -163,3 +163,37 @@ html:has(.landing) { scroll-behavior: smooth; scroll-padding-top: 5rem; backgrou
   .animate-float-a, .animate-float-b, .animate-pulse-dot, .animate-typing > span, .animate-msg-in { animation: none; }
   .landing * { transition-duration: 0.01ms !important; }
 }
+
+/* -------------------------------------------------------------------------
+ * Gráficos do dashboard do painel. Cores validadas (paleta de referência do
+ * método de dataviz): série azul, funil em rampa ordinal de um só azul,
+ * verde/vermelho só para variação (sempre com ▲/▼ junto, nunca só a cor).
+ * ---------------------------------------------------------------------- */
+.dash-viz {
+  --viz-series: #2a78d6;
+  --viz-series-fill: rgb(42 120 214 / 0.12);
+  --viz-funnel-1: #2a78d6;
+  --viz-funnel-2: #5598e7;
+  --viz-funnel-3: #86b6ef;
+  --viz-grid: #e4e4e7;
+  --viz-axis: #d4d4d8;
+  --viz-muted: #71717a;
+  --viz-surface: #ffffff;
+  --viz-up: #006300;
+  --viz-down: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  .dash-viz {
+    --viz-series: #3987e5;
+    --viz-series-fill: rgb(57 135 229 / 0.16);
+    --viz-funnel-1: #3987e5;
+    --viz-funnel-2: #256abf;
+    --viz-funnel-3: #184f95;
+    --viz-grid: #27272a;
+    --viz-axis: #3f3f46;
+    --viz-muted: #a1a1aa;
+    --viz-surface: #18181b;
+    --viz-up: #0ca30c;
+    --viz-down: #e66767;
+  }
+}
