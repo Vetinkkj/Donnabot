@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Menu, MessageCircle, Play, ShoppingBag, X, Zap } from "lucide-react";
-import { PRICING } from "@/lib/marketing-config";
 import { CTA, Eyebrow, Logo } from "./primitives";
 import { Bubble, ChatHeader, Typing, Window } from "./mockups";
 
@@ -141,17 +140,17 @@ export function Hero() {
         <div className="reveal">
           <Eyebrow>Seu novo vendedor no WhatsApp</Eyebrow>
           <h1 className="mt-6 text-balance text-[2.6rem] font-semibold leading-[1.04] tracking-[-0.035em] sm:text-6xl xl:text-7xl">
-            Sua loja vende. A Donna <span className="text-gradient">conversa, atende</span> e ajuda a vender.
+            A Donna <span className="text-gradient">atende, conversa e vende</span> com você.
           </h1>
           <p className="mt-6 max-w-xl text-pretty text-lg text-muted-foreground">
-            Automatize o atendimento da sua loja de peças e acessórios de celular pelo WhatsApp: capinhas, carregadores, películas, fones e muito mais, direto na conversa.
+            Transforme o WhatsApp da sua loja em um canal de vendas que atende seus clientes, apresenta produtos e agiliza pedidos automaticamente. Mais agilidade no atendimento, menos conversas perdidas e mais oportunidades de venda.
           </p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <CTA href="#cadastro">Testar por {PRICING.refundDays} dias com garantia <ArrowRight className="size-4" /></CTA>
+            <CTA href="#cadastro">Experimente a Donna <ArrowRight className="size-4" /></CTA>
             <CTA href="#demonstracao" variant="ghost"><Play className="size-4" /> Ver demonstração</CTA>
           </div>
           <p className="mt-5 flex items-center gap-2 text-sm text-muted-foreground">
-            <Zap className="size-4 text-primary" /> {PRICING.refundDays} dias para testar com reembolso garantido • Conheça a plataforma sem risco
+            <Zap className="size-4 text-primary" /> Conheça uma nova forma de atender e vender pelo WhatsApp.
           </p>
         </div>
         <HeroMockup />
