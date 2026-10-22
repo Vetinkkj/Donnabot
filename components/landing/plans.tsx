@@ -9,12 +9,12 @@ import { SectionHead } from "./primitives";
 
 type Plan = "monthly" | "yearly";
 
-const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const yearlyFullPrice = PRICING.monthly * 12;
 const yearlySavings = yearlyFullPrice - PRICING.yearly;
-// Desconto do anual em relação a 12 mensalidades (ex: 4.199,88 → 3.499,90 = 17%).
+// Desconto do anual em relação a 12 mensalidades (ex: 4.188 → 3.490 = 17%).
 const yearlyDiscountPercent = Math.round((yearlySavings / yearlyFullPrice) * 100);
-const yearlyPerMonth = currency.format(PRICING.yearly / 12);
+const yearlyPerMonth = currency.format(Math.round(PRICING.yearly / 12));
 
 const PLANS = [
   {

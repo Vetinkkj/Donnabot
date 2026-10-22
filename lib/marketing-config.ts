@@ -19,9 +19,9 @@ export const CONTACT_EMAIL = "contatodonnabot@gmail.com";
 export const CONTACT_WHATSAPP = "";
 
 export const PRICING = {
-  monthly: 349.99,
+  monthly: 349,
   // Anual = 10 mensalidades (2 meses de graça, ~17% de desconto).
-  yearly: 3499.9,
+  yearly: 3490,
   // Garantia: a loja paga e pode pedir reembolso integral até X dias depois.
   refundDays: 7,
 };
