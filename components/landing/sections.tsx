@@ -104,7 +104,7 @@ const trust = [
   { icon: Wrench, t: "Configuração assistida", d: "Você não começa sozinho: a equipe ajuda na conexão e no cadastro." },
   { icon: Eye, t: "Veja antes de decidir", d: "Demonstração visual de como a Donna conversa." },
   { icon: CalendarCheck, t: `${PRICING.refundDays} dias de garantia`, d: "Teste na sua loja; se não gostar, devolvemos o valor pago." },
-  { icon: FileText, t: "Planos claros", d: "Dois planos, preços abertos e processo de contratação explicado.", big: true },
+  { icon: FileText, t: "Planos que cabem no seu bolso", d: "Mensal ou anual, com preço aberto, sem taxa escondida e 7 dias de garantia.", big: true },
 ];
 
 export function Trust() {
