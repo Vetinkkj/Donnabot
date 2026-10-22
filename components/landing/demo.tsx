@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LayoutDashboard, MessagesSquare, ShoppingBag } from "lucide-react";
+import { Check, LayoutDashboard, MessagesSquare, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { SectionHead } from "./primitives";
 import { Bubble, ChatHeader, Window } from "./mockups";
@@ -40,6 +40,55 @@ function Produtos() {
         <Bubble from="donna" delay={1300}>Para levar, toque em &quot;Adicionar&quot; 👇</Bubble>
       </div>
     </Window>
+  );
+}
+
+const videoSteps = [
+  "Cliente pede a peça do jeito que fala no dia a dia",
+  "Donna confere o estoque e responde com o preço",
+  "Um toque em \"Adicionar\" monta o carrinho",
+  "Ao finalizar, a conversa vai para a sua equipe cobrar",
+];
+
+/** Gravação de tela de uma conversa de verdade com a Donna (loja de demonstração). */
+function RealConversation() {
+  return (
+    <div className="reveal mt-20 grid items-center gap-12 lg:grid-cols-[1fr_auto] lg:gap-20">
+      <div className="max-w-xl">
+        <p className="font-mono text-xs uppercase tracking-[0.14em] text-primary">Conversa real</p>
+        <h3 className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+          Do &quot;boa tarde&quot; ao pedido fechado, sem ninguém da loja digitar nada.
+        </h3>
+        <p className="mt-4 text-pretty text-muted-foreground">
+          Gravação de tela de um atendimento completo da Donna no WhatsApp, numa loja de demonstração.
+        </p>
+        <ul className="mt-8 space-y-3">
+          {videoSteps.map((step) => (
+            <li key={step} className="flex gap-3 text-sm">
+              <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+              {step}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="relative mx-auto w-full max-w-[300px]">
+        <div className="pointer-events-none absolute -inset-10 rounded-full bg-glow blur-2xl" />
+        <div className="relative overflow-hidden rounded-[2.5rem] border-[6px] border-border bg-black shadow-elegant">
+          {/* #t=0.1 faz o navegador mostrar o primeiro quadro como capa (sem isso, iPhone mostra tela preta). */}
+          <video
+            src="/demo-donna.mp4#t=0.1"
+            controls
+            muted
+            playsInline
+            preload="metadata"
+            width={432}
+            height={816}
+            className="block h-auto w-full"
+            aria-label="Vídeo: cliente conversa com a Donna no WhatsApp, adiciona uma tela de iPhone 11 ao carrinho e finaliza o pedido"
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -99,6 +148,7 @@ export function Demo() {
             <div className="relative">{tab === "atendimento" ? <Atendimento /> : tab === "produtos" ? <Produtos /> : <Gestao />}</div>
           </div>
         </div>
+        <RealConversation />
       </div>
     </section>
   );
