@@ -20,7 +20,7 @@ import { cn } from "@/lib/cn";
 import { CONTACT_EMAIL, PRICING } from "@/lib/marketing-config";
 import { CTA, Logo, SectionHead, TiltCard } from "./primitives";
 
-const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 const benefits = [
   { icon: MessageCircle, t: "Atendimento no WhatsApp", d: "A Donna responde seus clientes no canal onde eles já conversam com a sua loja." },
