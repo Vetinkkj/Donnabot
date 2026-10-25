@@ -5,6 +5,8 @@ import { isStoreOperational } from "@/services/store";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { LogoutButton } from "@/components/admin/LogoutButton";
 import { WaitingCustomerAlert } from "@/components/admin/WaitingCustomerAlert";
+import { SubscribeForm } from "@/components/admin/SubscribeForm";
+import { isAsaasConfigured } from "@/lib/asaas";
 import { BRAND_NAME, CONTACT_EMAIL, CONTACT_WHATSAPP } from "@/lib/marketing-config";
 
 const STATUS_MESSAGE: Record<string, string> = {
@@ -21,12 +23,18 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   if (session?.user?.storeId && !session.user.isPlatformAdmin) {
     const store = await db.store.findUnique({
       where: { id: session.user.storeId },
-      select: { name: true, status: true, subscriptionExpiresAt: true },
+      select: { name: true, status: true, subscriptionExpiresAt: true, intendedPlan: true },
     });
 
     if (store && !isStoreOperational(store)) {
       const expired = store.status === "ACTIVE";
-      const message = expired
+      // Pendente ou vencida paga sozinha pelo Asaas; suspensa só com você.
+      const canSubscribe = store.status !== "SUSPENDED" && isAsaasConfigured();
+      const message = canSubscribe
+        ? expired
+          ? "A assinatura desta loja venceu. Renove para liberar o painel e a Donna de novo."
+          : "Seu cadastro foi recebido! Escolha o plano e faça o pagamento: o painel e a Donna são liberados assim que ele for confirmado."
+        : expired
         ? `A validade da assinatura desta loja venceu. Fale com o suporte da ${BRAND_NAME} pra renovar.`
         : (STATUS_MESSAGE[store.status] ?? "O acesso desta loja está bloqueado no momento.");
       const whatsappHref = CONTACT_WHATSAPP
@@ -38,6 +46,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <div className="flex w-full max-w-sm flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-6 text-center dark:border-zinc-800 dark:bg-zinc-900">
             <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{store.name}</h1>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">{message}</p>
+            {canSubscribe && <SubscribeForm defaultPlan={store.intendedPlan === "yearly" ? "yearly" : "monthly"} />}
+            {canSubscribe && <p className="text-xs text-zinc-500 dark:text-zinc-400">Dúvidas? Fale com a gente:</p>}
             <div className="flex flex-col gap-2">
               {whatsappHref && (
                 <a

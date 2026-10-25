@@ -44,6 +44,11 @@ model Store {
   // Plano escolhido no cadastro (site público) — "monthly" | "yearly" | null.
   // Só um indicativo pra você saber o que cobrar na hora de aprovar a loja.
   intendedPlan           String?
+  // Cobrança da assinatura da Donna pelo Asaas (ver services/billing). O plano
+  // cobrado é o intendedPlan; a validade (subscriptionExpiresAt) é estendida
+  // pelo webhook a cada pagamento confirmado.
+  asaasCustomerId        String?     @unique
+  asaasSubscriptionId    String?     @unique
 
   // Integração WhatsApp da loja. Quando preenchida, sobrepõe as variáveis de
   // ambiente globais (WHATSAPP_PROVIDER etc.) — permite cada loja usar o
