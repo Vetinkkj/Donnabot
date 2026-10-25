@@ -80,7 +80,7 @@ export function ConversationList() {
     <aside
       aria-label="Conversas"
       className={cn(
-        "flex min-h-0 w-full shrink-0 flex-col border-white/[0.06] md:w-[320px] md:border-r xl:w-[340px]",
+        "flex min-h-0 w-full shrink-0 flex-col border-white/[0.06] md:w-[340px] md:border-r xl:w-[360px]",
         selectedId && "hidden md:flex"
       )}
     >
@@ -95,14 +95,16 @@ export function ConversationList() {
         </div>
         <SearchField value={query} onChange={setQuery} placeholder="Nome, telefone ou mensagem" label="Buscar conversa" />
         <Segmented<Filter>
+          fill
           label="Filtrar conversas"
           value={filter}
           onChange={setFilter}
           options={[
-            { value: "all", label: "Todas", count: counts.all },
+            // Coluna estreita: só a fila de espera mostra número (é o que pede ação).
+            { value: "all", label: "Todas" },
             { value: "WAITING_HUMAN", label: "Aguardando", count: counts.WAITING_HUMAN },
-            { value: "HUMAN", label: "Atendente", count: counts.HUMAN },
-            { value: "BOT", label: "Donna", count: counts.BOT },
+            { value: "HUMAN", label: "Atendente" },
+            { value: "BOT", label: "Donna" },
           ]}
         />
       </div>

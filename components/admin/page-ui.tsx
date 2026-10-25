@@ -84,37 +84,47 @@ export function Segmented<T extends string>({
   value,
   onChange,
   label,
+  fill = false,
 }: {
   options: { value: T; label: string; count?: number }[];
   value: T;
   onChange: (value: T) => void;
   label: string;
+  /** Ocupa a largura toda dividindo igualmente (colunas estreitas) e esconde contagens zeradas. */
+  fill?: boolean;
 }) {
   return (
     <div
       role="group"
       aria-label={label}
-      className="flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-xl border border-white/[0.07] bg-zinc-900/60 p-1 [scrollbar-width:none]"
+      className={cn(
+        "flex max-w-full items-center gap-0.5 rounded-xl border border-white/[0.07] bg-zinc-900/60 p-1",
+        fill ? "w-full" : "w-fit overflow-x-auto [scrollbar-width:none]"
+      )}
     >
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => onChange(option.value)}
-          aria-pressed={option.value === value}
-          className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-[13px] font-medium transition-all active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-emerald-500",
-            option.value === value ? "bg-white/10 text-zinc-50" : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
-          )}
-        >
-          {option.label}
-          {option.count !== undefined && (
-            <span className={cn("text-xs tabular-nums", option.value === value ? "text-zinc-300" : "text-zinc-600")}>
-              {option.count}
-            </span>
-          )}
-        </button>
-      ))}
+      {options.map((option) => {
+        const showCount = option.count !== undefined && (!fill || option.count > 0);
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            aria-pressed={option.value === value}
+            className={cn(
+              "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg py-1 font-medium transition-all active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-emerald-500",
+              fill ? "min-w-0 flex-auto px-2 text-xs" : "px-2.5 text-[13px]",
+              option.value === value ? "bg-white/10 text-zinc-50" : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
+            )}
+          >
+            <span className={cn(fill && "truncate")}>{option.label}</span>
+            {showCount && (
+              <span className={cn("text-xs tabular-nums", option.value === value ? "text-zinc-300" : "text-zinc-600")}>
+                {option.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
