@@ -156,7 +156,9 @@ export async function getDashboardOverview(storeId: string, range: DashboardRang
         total: true,
         customerId: true,
         payment: { select: { paidAt: true } },
-        items: { select: { productId: true, quantity: true, subtotal: true, product: { select: { name: true } } } },
+        items: {
+          select: { productId: true, quantity: true, subtotal: true, product: { select: { name: true, imageUrl: true } } },
+        },
       },
     }),
     db.order.findMany({
@@ -202,6 +204,8 @@ export async function getDashboardOverview(storeId: string, range: DashboardRang
     tooltip: capitalize(monthly ? monthLong.format(utcNoon(key)) : longDate.format(utcNoon(key))),
     revenue: 0,
     orders: 0,
+    // Mesmo ponto no período anterior (ex: 3º dia do período anterior), para a linha de comparação.
+    previousRevenue: 0,
   }));
   const seriesByDay = new Map(series.map((point) => [point.key, point]));
 
@@ -209,7 +213,8 @@ export async function getDashboardOverview(storeId: string, range: DashboardRang
   let revenuePrevious = 0;
   let paidCurrent = 0;
   let paidPrevious = 0;
-  const productTotals = new Map<string, { name: string; revenue: number; quantity: number }>();
+  const productTotals = new Map<string, { name: string; imageUrl: string | null; revenue: number; quantity: number }>();
+  let productRevenueTotal = 0;
   const payingCustomers = new Set<string>();
   const payingCustomersPrevious = new Set<string>();
 
@@ -228,8 +233,14 @@ export async function getDashboardOverview(storeId: string, range: DashboardRang
         point.orders += 1;
       }
       for (const item of order.items) {
-        const entry = productTotals.get(item.productId) ?? { name: item.product.name, revenue: 0, quantity: 0 };
+        const entry = productTotals.get(item.productId) ?? {
+          name: item.product.name,
+          imageUrl: item.product.imageUrl,
+          revenue: 0,
+          quantity: 0,
+        };
         entry.revenue += Number(item.subtotal);
+        productRevenueTotal += Number(item.subtotal);
         entry.quantity += item.quantity;
         productTotals.set(item.productId, entry);
       }
@@ -237,6 +248,8 @@ export async function getDashboardOverview(storeId: string, range: DashboardRang
       revenuePrevious += total;
       paidPrevious += 1;
       payingCustomersPrevious.add(order.customerId);
+      const shifted = seriesByDay.get(bucketOf(dayKey(new Date(paidAt.getTime() + days * DAY_MS))));
+      if (shifted) shifted.previousRevenue += total;
     }
   }
 
@@ -257,19 +270,51 @@ export async function getDashboardOverview(storeId: string, range: DashboardRang
 
   return {
     range: { ...range, days, granularity: monthly ? ("month" as const) : ("day" as const) },
+    // `previous` deixa a tela distinguir "sem variação" de "sem dados para comparar".
     kpis: {
-      revenue: { value: revenueCurrent, change: percentChange(revenueCurrent, revenuePrevious) },
-      paidOrders: { value: paidCurrent, change: percentChange(paidCurrent, paidPrevious) },
-      averageTicket: { value: ticketCurrent, change: percentChange(ticketCurrent, ticketPrevious) },
+      revenue: { value: revenueCurrent, previous: revenuePrevious, change: percentChange(revenueCurrent, revenuePrevious) },
+      paidOrders: { value: paidCurrent, previous: paidPrevious, change: percentChange(paidCurrent, paidPrevious) },
+      averageTicket: {
+        value: ticketCurrent,
+        // sem pedido pago no período anterior não existe ticket médio para comparar
+        previous: paidPrevious ? ticketPrevious : null,
+        change: paidPrevious ? percentChange(ticketCurrent, ticketPrevious) : null,
+      },
       // conversão em pontos percentuais (diferença absoluta), não em %
-      conversion: { value: conversionCurrent, changePoints: conversionCurrent - conversionPrevious },
-      conversations: { value: conversationCount, change: percentChange(conversationCount, conversationsPrevious.length) },
-      newCustomers: { value: newCustomersCurrent, change: percentChange(newCustomersCurrent, newCustomersPrevious) },
+      conversion: {
+        value: conversionCurrent,
+        previous: talkedPrevious ? conversionPrevious : null,
+        changePoints: conversionCurrent - conversionPrevious,
+      },
+      conversations: {
+        value: conversationCount,
+        previous: conversationsPrevious.length,
+        change: percentChange(conversationCount, conversationsPrevious.length),
+      },
+      newCustomers: {
+        value: newCustomersCurrent,
+        previous: newCustomersPrevious,
+        change: percentChange(newCustomersCurrent, newCustomersPrevious),
+      },
     },
-    series: series.map((point) => ({ ...point, revenue: Math.round(point.revenue * 100) / 100 })),
+    series: series.map((point) => ({
+      ...point,
+      revenue: Math.round(point.revenue * 100) / 100,
+      previousRevenue: Math.round(point.previousRevenue * 100) / 100,
+    })),
     funnel,
-    topProducts: [...productTotals.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 5),
-    now: { waitingHuman, withHuman, pendingOrders, lowStockCount: lowStock.length, productsCount },
+    topProducts: [...productTotals.values()]
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5)
+      .map((product) => ({ ...product, share: productRevenueTotal ? product.revenue / productRevenueTotal : 0 })),
+    now: {
+      waitingHuman,
+      withHuman,
+      pendingOrders,
+      lowStockCount: lowStock.length,
+      outOfStockCount: lowStock.filter((product) => product.stockQuantity <= 0).length,
+      productsCount,
+    },
     lowStock: lowStock.slice(0, 5).map((product) => ({
       id: product.id,
       name: product.name,

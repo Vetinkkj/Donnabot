@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -30,8 +31,13 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<SerializedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [stockFilter, setStockFilter] = useState<StockFilter>("all");
+  // Atalhos vindos do dashboard: /products?busca=Nome e /products?estoque=baixo|esgotado.
+  const searchParams = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get("busca") ?? "");
+  const [stockFilter, setStockFilter] = useState<StockFilter>(() => {
+    const estoque = searchParams.get("estoque");
+    return estoque === "baixo" ? "low_stock" : estoque === "esgotado" ? "out_of_stock" : "all";
+  });
   const [categoryNames, setCategoryNames] = useState<string[]>([]);
   const [defaultMinStock, setDefaultMinStock] = useState(2);
 

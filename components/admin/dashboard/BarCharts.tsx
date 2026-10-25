@@ -1,118 +1,111 @@
-"use client";
-
-import { useState } from "react";
-
-const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const percent = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
-
-const FUNNEL_COLORS = ["var(--viz-funnel-1)", "var(--viz-funnel-2)", "var(--viz-funnel-3)"];
+import { ImageIcon, TrendingDown } from "lucide-react";
+import { cn } from "@/lib/cn";
+import { currency, decimal, integer } from "./ui";
 
 /**
- * Funil do período: conversas → carrinhos finalizados → pedidos pagos.
- * Barras na mesma escala (a primeira etapa = 100%), rampa de um só azul
- * escurecendo pela ordem, e a conversão de uma etapa para a seguinte escrita
- * ao lado (nunca só pela cor).
+ * Funil do período: conversaram → finalizaram o carrinho → pagaram. Todas as
+ * barras na mesma escala (a 1ª etapa = 100%) e, entre uma etapa e a seguinte,
+ * quantos clientes ficaram pelo caminho. As etapas são acumulativas no serviço
+ * (quem pagou também finalizou), então cada uma nunca passa da anterior.
  */
 export function FunnelChart({ stages }: { stages: { label: string; value: number }[] }) {
-  const [hovered, setHovered] = useState<number | null>(null);
-  // Escala pelo maior valor (não pela 1ª etapa) e largura travada em 100%: a barra nunca sai do card.
-  const top = Math.max(...stages.map((s) => s.value), 1);
+  const top = Math.max(stages[0]?.value ?? 0, 1);
+  const drops = stages.slice(1).map((stage, i) => {
+    const from = stages[i].value;
+    const lost = Math.max(from - stage.value, 0);
+    return { lost, rate: from ? (lost / from) * 100 : 0 };
+  });
+  const worst = drops.reduce((best, drop, i) => (drop.lost > 0 && drop.rate > (drops[best]?.rate ?? -1) ? i : best), -1);
 
   return (
-    <div className="flex flex-col gap-4">
+    <ol className="flex flex-col">
       {stages.map((stage, i) => {
-        const previous = i > 0 ? stages[i - 1].value : null;
-        const fromPrevious = previous ? Math.min((stage.value / previous) * 100, 100) : null;
         const ofTop = Math.min((stage.value / top) * 100, 100);
+        const drop = i > 0 ? drops[i - 1] : null;
         return (
-          <div
-            key={stage.label}
-            className="relative"
-            onPointerEnter={() => setHovered(i)}
-            onPointerLeave={() => setHovered(null)}
-          >
-            <div className="mb-1 flex items-baseline justify-between gap-3 text-sm">
-              <span className="text-zinc-700 dark:text-zinc-300">{stage.label}</span>
-              <span className="font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">{stage.value}</span>
-            </div>
-            <div className="h-7 w-full overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800/70">
-              <div
-                className="h-full rounded transition-[filter] duration-150"
-                style={{
-                  width: `${stage.value ? Math.max(ofTop, 1.5) : 0}%`,
-                  background: FUNNEL_COLORS[i] ?? FUNNEL_COLORS[FUNNEL_COLORS.length - 1],
-                  filter: hovered === i ? "brightness(1.1)" : undefined,
-                }}
-              />
-            </div>
-            {fromPrevious !== null && (
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                {percent.format(fromPrevious)}% da etapa anterior
-              </p>
-            )}
-            {hovered === i && (
-              <div className="pointer-events-none absolute -top-2 right-0 z-10 -translate-y-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs shadow-md dark:border-zinc-700 dark:bg-zinc-900">
-                <p className="font-medium text-zinc-900 dark:text-zinc-50">{stage.label}</p>
-                <p className="text-zinc-600 dark:text-zinc-300">
-                  {stage.value} {stage.value === 1 ? "cliente" : "clientes"}
-                  {i > 0 && stages[0].value > 0 && ` • ${percent.format(Math.min((stage.value / stages[0].value) * 100, 100))}% de quem conversou`}
-                </p>
+          <li key={stage.label}>
+            {drop && (
+              <div className="flex items-center gap-2 py-2 pl-3 text-xs">
+                <span className="h-4 w-px bg-white/10" aria-hidden />
+                {drop.lost > 0 ? (
+                  <span className={cn("inline-flex items-center gap-1", worst === i - 1 ? "text-amber-300/90" : "text-zinc-500")}>
+                    <TrendingDown className="size-3.5" aria-hidden />
+                    {integer.format(drop.lost)} {drop.lost === 1 ? "cliente não seguiu" : "clientes não seguiram"} (
+                    {decimal.format(drop.rate)}%)
+                    {worst === i - 1 && <span className="ml-1 rounded bg-amber-400/10 px-1.5 py-0.5 text-[11px] font-medium">maior perda</span>}
+                  </span>
+                ) : (
+                  <span className="text-zinc-500">Ninguém ficou pelo caminho nesta etapa</span>
+                )}
               </div>
             )}
-          </div>
+            <div className="group">
+              <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
+                <span className="text-zinc-300">{stage.label}</span>
+                <span className="flex items-baseline gap-2">
+                  <span className="text-xs tabular-nums text-zinc-500">{decimal.format(ofTop)}%</span>
+                  <span className="min-w-8 text-right font-semibold tabular-nums text-zinc-50">{integer.format(stage.value)}</span>
+                </span>
+              </div>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/[0.05]">
+                <div
+                  className="dash-grow h-full rounded-full transition-[filter] group-hover:brightness-125"
+                  style={{
+                    width: `${stage.value ? Math.max(ofTop, 1.5) : 0}%`,
+                    // mesma medida (clientes) em todas as etapas: uma cor só, a largura conta a história
+                    background: "var(--viz-series)",
+                    animationDelay: `${i * 90}ms`,
+                  }}
+                />
+              </div>
+            </div>
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
 }
 
-/** Produtos que mais faturaram no período (uma série: barras do mesmo azul, rótulos em texto). */
-export function TopProductsChart({ products }: { products: { name: string; revenue: number; quantity: number }[] }) {
-  const [hovered, setHovered] = useState<number | null>(null);
-
-  if (products.length === 0) {
-    return <p className="py-8 text-center text-sm text-zinc-500">Nenhum produto vendido neste período ainda.</p>;
-  }
-
+/** Produtos que mais faturaram: posição, foto, unidades, receita e participação no faturamento de produtos. */
+export function TopProductsList({
+  products,
+}: {
+  products: { name: string; imageUrl: string | null; revenue: number; quantity: number; share: number }[];
+}) {
   const max = Math.max(...products.map((p) => p.revenue), 1);
-  const total = products.reduce((sum, p) => sum + p.revenue, 0);
-
   return (
-    <div className="flex flex-col gap-3">
+    <ol className="flex flex-col gap-4">
       {products.map((product, i) => (
-        <div
-          key={product.name}
-          className="relative"
-          onPointerEnter={() => setHovered(i)}
-          onPointerLeave={() => setHovered(null)}
-        >
-          <div className="mb-1 flex items-baseline justify-between gap-3 text-sm">
-            <span className="truncate text-zinc-700 dark:text-zinc-300">{product.name}</span>
-            <span className="shrink-0 font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
-              {currency.format(product.revenue)}
-            </span>
-          </div>
-          <div className="h-2.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800/70">
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${Math.max((product.revenue / max) * 100, 2)}%`,
-                background: "var(--viz-series)",
-                filter: hovered === i ? "brightness(1.1)" : undefined,
-              }}
-            />
-          </div>
-          {hovered === i && (
-            <div className="pointer-events-none absolute -top-2 right-0 z-10 -translate-y-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs shadow-md dark:border-zinc-700 dark:bg-zinc-900">
-              <p className="font-medium text-zinc-900 dark:text-zinc-50">{product.name}</p>
-              <p className="text-zinc-600 dark:text-zinc-300">
-                {product.quantity} {product.quantity === 1 ? "unidade" : "unidades"} •{" "}
-                {percent.format(total ? (product.revenue / total) * 100 : 0)}% do faturamento destes produtos
-              </p>
+        <li key={product.name} className="flex items-center gap-3">
+          <span className="w-4 shrink-0 text-center text-xs font-medium tabular-nums text-zinc-500">{i + 1}</span>
+          <span className="relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/[0.07] bg-white/[0.03] text-zinc-500">
+            {product.imageUrl ? (
+              // Fotos vêm de qualquer URL cadastrada pela loja — <img> evita configurar domínios no next/image.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={product.imageUrl} alt="" className="size-full object-cover" loading="lazy" />
+            ) : (
+              <ImageIcon className="size-4" aria-hidden />
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="truncate text-zinc-200">{product.name}</span>
+              <span className="shrink-0 font-semibold tabular-nums text-zinc-50">{currency.format(product.revenue)}</span>
             </div>
-          )}
-        </div>
+            <div className="mt-1.5 flex items-center gap-3">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
+                <div
+                  className="dash-grow h-full rounded-full"
+                  style={{ width: `${Math.max((product.revenue / max) * 100, 2)}%`, background: "var(--viz-series)", animationDelay: `${i * 70}ms` }}
+                />
+              </div>
+              <span className="w-28 shrink-0 text-right text-xs tabular-nums text-zinc-500">
+                {integer.format(product.quantity)} un. · {decimal.format(product.share * 100)}%
+              </span>
+            </div>
+          </div>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }

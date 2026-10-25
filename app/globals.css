@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* O painel (dashboard, produtos, pedidos…) é sempre escuro: a classe .dark é
+ * aplicada no layout dele. Sem isto o Tailwind seguiria o tema do sistema. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -182,18 +186,43 @@ html:has(.landing) { scroll-behavior: smooth; scroll-padding-top: 5rem; backgrou
   --viz-up: #006300;
   --viz-down: #d03b3b;
 }
-@media (prefers-color-scheme: dark) {
-  .dash-viz {
-    --viz-series: #3987e5;
-    --viz-series-fill: rgb(57 135 229 / 0.16);
-    --viz-funnel-1: #3987e5;
-    --viz-funnel-2: #256abf;
-    --viz-funnel-3: #184f95;
-    --viz-grid: #27272a;
-    --viz-axis: #3f3f46;
-    --viz-muted: #a1a1aa;
-    --viz-surface: #18181b;
-    --viz-up: #0ca30c;
-    --viz-down: #e66767;
-  }
+/* Tema escuro do painel. Série = verde da Donna num passo validado para gráfico
+ * sobre a superfície dos cards (#101012): L 0.61, contraste ≥ 3:1. O verde
+ * mais claro da landing reprova no validador (claro demais para marca de dado). */
+.dark .dash-viz {
+  --viz-series: #14a473;
+  --viz-series-fill: rgb(20 164 115 / 0.1);
+  --viz-previous: #52525b;
+  --viz-funnel-1: #14a473;
+  --viz-funnel-2: #14a473;
+  --viz-funnel-3: #14a473;
+  --viz-grid: #1f1f23;
+  --viz-axis: #3f3f46;
+  --viz-muted: #a1a1aa;
+  --viz-surface: #101012;
+  --viz-up: #34c38a;
+  --viz-down: #f07171;
+}
+
+/* Movimento do painel: curto, só na entrada e nas trocas de período. */
+@keyframes dash-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes dash-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes dash-grow {
+  from { transform: scaleX(0); }
+}
+@keyframes dash-fade {
+  from { opacity: 0; }
+}
+.dash-enter { animation: dash-fade-up 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.dash-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: dash-draw 0.9s cubic-bezier(0.3, 0.7, 0.2, 1) 0.1s forwards; }
+.dash-grow { transform-origin: left center; animation: dash-grow 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.dash-fade { animation: dash-fade 0.6s ease-out 0.25s both; }
+@media (prefers-reduced-motion: reduce) {
+  .dash-enter, .dash-grow, .dash-fade { animation: none; }
+  .dash-draw { animation: none; stroke-dashoffset: 0; }
 }

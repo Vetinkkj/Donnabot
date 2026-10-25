@@ -1,22 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Check } from "lucide-react";
+import { CalendarDays, Check, Loader2 } from "lucide-react";
+import { cn } from "@/lib/cn";
 
 type Preset = { id: string; label: string };
 
-const display = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
+const display = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 function formatKey(key: string) {
-  return display.format(new Date(`${key}T12:00:00Z`));
+  return display.format(new Date(`${key}T12:00:00Z`)).replace(/\./g, "");
 }
 
 /**
- * Atalhos de período (Hoje, Ontem, 7/30 dias, Este mês, Mês passado, Este ano) +
- * "Personalizado": duas datas no calendário (qualquer dia, mês e ano). Tudo
- * vira parâmetro na URL (?periodo=… ou ?de=…&ate=…), então o link é
- * compartilhável e o botão voltar do navegador funciona.
+ * Atalhos de período + "Personalizado" (duas datas, qualquer dia/mês/ano).
+ * Tudo vira parâmetro na URL (?periodo=… ou ?de=…&ate=…): o servidor recalcula
+ * os números, o link é compartilhável e o voltar do navegador funciona.
+ * Enquanto os dados novos chegam, o controle mostra que está carregando.
  */
 export function DateRangeFilter({
   presets,
@@ -32,6 +32,8 @@ export function DateRangeFilter({
   today: string;
 }) {
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [target, setTarget] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [start, setStart] = useState(from);
   const [end, setEnd] = useState(to);
@@ -53,33 +55,47 @@ export function DateRangeFilter({
     };
   }, [open]);
 
+  function go(id: string, href: string) {
+    setTarget(id);
+    startTransition(() => router.push(href, { scroll: false }));
+  }
+
   function apply() {
     if (!start || !end) return;
     setOpen(false);
-    router.push(`/dashboard?de=${start}&ate=${end}`);
+    go("personalizado", `/dashboard?de=${start}&ate=${end}`);
   }
 
   const invalid = !start || !end || start > end;
+  const shown = pending && target ? target : active;
 
   return (
-    <div className="flex flex-col items-start gap-2 sm:items-end">
-      <div className="flex flex-wrap items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1 dark:border-zinc-800 dark:bg-zinc-900">
-        {presets.map((preset) => (
-          <Link
-            key={preset.id}
-            href={`/dashboard?periodo=${preset.id}`}
-            aria-current={preset.id === active ? "page" : undefined}
-            className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
-              preset.id === active
-                ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
-                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-            }`}
-          >
-            {preset.label}
-          </Link>
-        ))}
+    <div className="flex min-w-0 flex-col items-start gap-2 xl:items-end">
+      <div className="flex max-w-full items-center gap-2">
+        <div
+          role="group"
+          aria-label="Período"
+          className="flex min-w-0 items-center gap-0.5 overflow-x-auto rounded-xl border border-white/[0.07] bg-zinc-900/60 p-1 [scrollbar-width:none]"
+        >
+          {presets.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => go(preset.id, `/dashboard?periodo=${preset.id}`)}
+              aria-pressed={preset.id === shown}
+              className={cn(
+                "shrink-0 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-all active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-emerald-500",
+                preset.id === shown
+                  ? "bg-white/10 text-zinc-50 shadow-sm shadow-black/20"
+                  : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
+              )}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
 
-        <div ref={boxRef} className="relative">
+        <div ref={boxRef} className="relative shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -88,31 +104,37 @@ export function DateRangeFilter({
               setOpen((value) => !value);
             }}
             aria-expanded={open}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
-              active === "personalizado"
-                ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
-                : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-            }`}
+            aria-haspopup="dialog"
+            className={cn(
+              "flex h-[38px] items-center gap-1.5 rounded-xl border px-3 text-[13px] font-medium transition-all active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-emerald-500",
+              shown === "personalizado"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                : "border-white/[0.07] bg-zinc-900/60 text-zinc-300 hover:text-zinc-50"
+            )}
           >
             <CalendarDays className="size-4" aria-hidden />
-            Personalizado
+            <span className="hidden sm:inline">Personalizado</span>
           </button>
 
           {open && (
-            <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-zinc-200 bg-white p-4 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-              <p className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">Escolher período</p>
+            <div
+              role="dialog"
+              aria-label="Escolher período"
+              className="dash-enter absolute right-0 z-30 mt-2 w-72 rounded-xl border border-white/10 bg-zinc-900 p-4 shadow-2xl shadow-black/50"
+            >
+              <p className="mb-3 text-sm font-semibold text-zinc-50">Escolher período</p>
               <div className="grid grid-cols-2 gap-3">
-                <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                <label className="flex flex-col gap-1 text-xs font-medium text-zinc-400">
                   De
                   <input
                     type="date"
                     value={start}
                     max={end || today}
                     onChange={(e) => setStart(e.target.value)}
-                    className="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:[color-scheme:dark]"
+                    className="rounded-lg border border-white/10 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-50 [color-scheme:dark] focus:border-emerald-500/60 focus:outline-none"
                   />
                 </label>
-                <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                <label className="flex flex-col gap-1 text-xs font-medium text-zinc-400">
                   Até
                   <input
                     type="date"
@@ -120,18 +142,18 @@ export function DateRangeFilter({
                     min={start}
                     max={today}
                     onChange={(e) => setEnd(e.target.value)}
-                    className="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:[color-scheme:dark]"
+                    className="rounded-lg border border-white/10 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-50 [color-scheme:dark] focus:border-emerald-500/60 focus:outline-none"
                   />
                 </label>
               </div>
               {start && end && start > end && (
-                <p className="mt-2 text-xs text-red-600 dark:text-red-400">A data inicial precisa ser antes da final.</p>
+                <p className="mt-2 text-xs text-red-400">A data inicial precisa ser antes da final.</p>
               )}
               <div className="mt-4 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="rounded-md px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  className="rounded-lg px-3 py-1.5 text-sm text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
                 >
                   Cancelar
                 </button>
@@ -139,7 +161,7 @@ export function DateRangeFilter({
                   type="button"
                   disabled={invalid}
                   onClick={apply}
-                  className="flex items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40 dark:bg-zinc-50 dark:text-zinc-900"
+                  className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-emerald-950 transition-all hover:bg-emerald-400 active:scale-[0.97] disabled:opacity-40"
                 >
                   <Check className="size-4" aria-hidden />
                   Aplicar
@@ -149,8 +171,17 @@ export function DateRangeFilter({
           )}
         </div>
       </div>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        {from === to ? formatKey(from) : `${formatKey(from)} até ${formatKey(to)}`}
+      <p className="flex items-center gap-1.5 text-xs text-zinc-500" aria-live="polite">
+        {pending ? (
+          <>
+            <Loader2 className="size-3.5 motion-safe:animate-spin" aria-hidden />
+            Atualizando os números…
+          </>
+        ) : from === to ? (
+          formatKey(from)
+        ) : (
+          `${formatKey(from)} – ${formatKey(to)}`
+        )}
       </p>
     </div>
   );
