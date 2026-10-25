@@ -3,8 +3,8 @@ import Link from "next/link";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Info, Minus } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-// Peças visuais do dashboard. Server-friendly (sem estado): a interatividade
-// fica nos gráficos e no filtro de período.
+// Peças visuais compartilhadas do painel (dashboard e demais páginas). Sem
+// estado próprio: funcionam em componentes de servidor e de cliente.
 
 export const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 export const compactCurrency = new Intl.NumberFormat("pt-BR", {

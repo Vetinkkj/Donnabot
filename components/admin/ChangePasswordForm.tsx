@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { StatusMessage } from "@/components/admin/page-ui";
 
 const EMPTY = { currentPassword: "", newPassword: "", confirmPassword: "" };
 
@@ -11,10 +12,11 @@ export function ChangePasswordForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string> | undefined>();
-  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [saved, setSaved] = useState(false);
 
   function update(field: keyof typeof EMPTY, value: string) {
     setValues((prev) => ({ ...prev, [field]: value }));
+    setSaved(false);
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -22,7 +24,7 @@ export function ChangePasswordForm() {
     setSubmitting(true);
     setError(undefined);
     setFieldErrors(undefined);
-    setSavedAt(null);
+    setSaved(false);
     try {
       const res = await fetch("/api/admin/account/password", {
         method: "POST",
@@ -38,7 +40,7 @@ export function ChangePasswordForm() {
         return;
       }
       setValues(EMPTY);
-      setSavedAt(new Date());
+      setSaved(true);
     } catch {
       setError("Erro de conexão ao trocar a senha");
     } finally {
@@ -46,29 +48,22 @@ export function ChangePasswordForm() {
     }
   }
 
+  const incomplete = !values.currentPassword || !values.newPassword || !values.confirmPassword;
+
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
-    >
-      <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Alterar senha</h2>
-      {error && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">{error}</p>
-      )}
-      {savedAt && (
-        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-300">
-          Senha alterada. Use a nova senha no próximo login.
-        </p>
-      )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Input
-          label="Senha atual"
-          type="password"
-          autoComplete="current-password"
-          value={values.currentPassword}
-          onChange={(e) => update("currentPassword", e.target.value)}
-          error={fieldErrors?.currentPassword}
-        />
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {error && <StatusMessage tone="error">{error}</StatusMessage>}
+      {saved && <StatusMessage tone="success">Senha alterada. Use a nova senha no próximo login.</StatusMessage>}
+      <Input
+        label="Senha atual"
+        type="password"
+        autoComplete="current-password"
+        value={values.currentPassword}
+        onChange={(e) => update("currentPassword", e.target.value)}
+        error={fieldErrors?.currentPassword}
+        className="sm:max-w-sm"
+      />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Input
           label="Nova senha"
           type="password"
@@ -76,6 +71,7 @@ export function ChangePasswordForm() {
           value={values.newPassword}
           onChange={(e) => update("newPassword", e.target.value)}
           error={fieldErrors?.newPassword}
+          hint="Mínimo de 8 caracteres."
         />
         <Input
           label="Repita a nova senha"
@@ -87,8 +83,8 @@ export function ChangePasswordForm() {
         />
       </div>
       <div>
-        <Button type="submit" disabled={submitting}>
-          {submitting ? "Salvando..." : "Alterar senha"}
+        <Button type="submit" variant="secondary" loading={submitting} disabled={incomplete}>
+          Alterar senha
         </Button>
       </div>
     </form>

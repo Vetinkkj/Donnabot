@@ -25,7 +25,7 @@ import {
   currency,
   decimal,
   integer,
-} from "./ui";
+} from "@/components/admin/ui";
 
 const dateTime = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
@@ -117,7 +117,7 @@ function AttentionStrip({ now }: { now: DashboardOverview["now"] }) {
           tone={now.waitingHuman ? "alert" : "calm"}
         />
         <AttentionItem
-          href="/orders"
+          href="/orders?status=PENDING"
           icon={Receipt}
           value={now.pendingOrders}
           label={now.pendingOrders === 1 ? "pedido pendente" : "pedidos pendentes"}

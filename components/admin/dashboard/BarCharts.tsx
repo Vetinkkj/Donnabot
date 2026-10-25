@@ -1,6 +1,6 @@
 import { ImageIcon, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { currency, decimal, integer } from "./ui";
+import { currency, decimal, integer } from "@/components/admin/ui";
 
 /**
  * Funil do período: conversaram → finalizaram o carrinho → pagaram. Todas as

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 type WaitingConversation = { id: string; customerName: string };
 
@@ -37,6 +38,7 @@ export function WaitingCustomerAlert() {
   const [waiting, setWaiting] = useState<WaitingConversation[]>([]);
   const [latestNew, setLatestNew] = useState<WaitingConversation | null>(null);
   const [soundReady, setSoundReady] = useState(false);
+  const onInbox = usePathname()?.startsWith("/conversations") ?? false;
   const audioRef = useRef<AudioContext | null>(null);
   const knownIdsRef = useRef<Set<string> | null>(null);
 
@@ -91,32 +93,35 @@ export function WaitingCustomerAlert() {
   }, [waiting.length]);
 
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
+    // No Atendimento o canto de baixo é do campo de mensagem: o aviso sobe para o topo.
+    <div
+      className={`pointer-events-none fixed right-4 z-50 flex flex-col items-end gap-2 ${onInbox ? "top-4" : "bottom-4"}`}
+    >
       {latestNew && waiting.some((conversation) => conversation.id === latestNew.id) && (
-        <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm shadow-lg dark:border-amber-700 dark:bg-amber-950">
-          <span className="text-amber-900 dark:text-amber-100">
+        <div className="dash-enter pointer-events-auto flex items-center gap-3 rounded-xl border border-amber-400/25 bg-zinc-900/95 px-4 py-3 text-sm shadow-2xl shadow-black/50 backdrop-blur">
+          <span className="text-zinc-200">
             🔔 <strong>{latestNew.customerName}</strong> está aguardando atendimento
           </span>
           <Link
             href={`/conversations/${latestNew.id}`}
             onClick={() => setLatestNew(null)}
-            className="rounded-md bg-amber-600 px-3 py-1 text-xs font-medium text-white hover:bg-amber-700"
+            className="rounded-md bg-amber-400 px-3 py-1 text-xs font-semibold text-amber-950 hover:bg-amber-300"
           >
             Abrir
           </Link>
           <button
             type="button"
             onClick={() => setLatestNew(null)}
-            className="text-xs text-amber-800 hover:underline dark:text-amber-200"
+            className="text-xs text-zinc-400 hover:text-zinc-100"
           >
             Fechar
           </button>
         </div>
       )}
-      {waiting.length > 0 && (
+      {waiting.length > 0 && !onInbox && (
         <Link
           href="/conversations"
-          className="pointer-events-auto rounded-full bg-amber-600 px-3 py-1 text-xs font-medium text-white shadow hover:bg-amber-700"
+          className="pointer-events-auto rounded-full bg-amber-400 px-3 py-1 text-xs font-semibold text-amber-950 shadow-lg shadow-black/40 hover:bg-amber-300"
         >
           {waiting.length} aguardando atendimento
         </Link>
@@ -126,7 +131,7 @@ export function WaitingCustomerAlert() {
           type="button"
           // o pointerdown global já destrava o áudio; aqui só toca um bipe de confirmação
           onClick={() => setTimeout(() => audioRef.current?.state === "running" && playChime(audioRef.current), 100)}
-          className="pointer-events-auto rounded-full border border-zinc-300 bg-white px-3 py-1 text-xs text-zinc-700 shadow hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+          className="pointer-events-auto rounded-full border border-white/10 bg-zinc-900 px-3 py-1 text-xs text-zinc-300 shadow-lg shadow-black/40 hover:bg-zinc-800"
         >
           🔈 Ativar som dos avisos
         </button>

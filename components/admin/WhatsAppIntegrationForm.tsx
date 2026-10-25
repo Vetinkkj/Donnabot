@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { MetaEmbeddedSignupButton } from "@/components/admin/MetaEmbeddedSignupButton";
@@ -36,6 +37,7 @@ export function WhatsAppIntegrationForm({
   isPlatformAdmin?: boolean;
 }) {
   const [status, setStatus] = useState(initialStatus);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const [provider, setProvider] = useState<Provider>(
     status.whatsappProvider === "twilio" ? "twilio" : "meta"
   );
@@ -89,6 +91,7 @@ export function WhatsAppIntegrationForm({
   }
 
   async function handleRemove() {
+    setConfirmRemove(false);
     setRemoving(true);
     setError(undefined);
     setSavedAt(null);
@@ -110,9 +113,9 @@ export function WhatsAppIntegrationForm({
   }
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="mb-1 flex items-center justify-between">
-        <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">WhatsApp desta loja</h2>
+    <section>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-zinc-100">Número da loja</h3>
         {isConfigured ? (
           <Badge tone="success">
             {isPlatformAdmin
@@ -123,7 +126,7 @@ export function WhatsAppIntegrationForm({
           <Badge tone="neutral">{isPlatformAdmin ? "Não conectado (usando padrão do sistema)" : "Não conectado"}</Badge>
         )}
       </div>
-      <p className="mb-3 text-xs text-zinc-500">
+      <p className="mb-4 text-[13px] leading-relaxed text-zinc-400">
         {isPlatformAdmin
           ? "Cole aqui as credenciais do WhatsApp desta loja para que ela use o próprio número, em vez do número padrão configurado no servidor. Os valores ficam criptografados no banco e nunca são exibidos de novo depois de salvos."
           : isConfigured
@@ -136,11 +139,11 @@ export function WhatsAppIntegrationForm({
       )}
 
       {embeddedSignup && !isConfigured && (
-        <div className="mb-4 flex flex-col gap-2 rounded-md border border-dashed border-zinc-300 p-3 dark:border-zinc-700">
+        <div className="mb-4 flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
           <p className="text-xs text-zinc-500">
             Conecte o WhatsApp da loja em um clique, direto pela Meta (recomendado):
           </p>
-          <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+          <div className="rounded-lg border border-amber-400/20 bg-amber-400/[0.07] px-3 py-2.5 text-xs leading-relaxed text-amber-100">
             <p className="font-semibold">Antes de conectar</p>
             <p className="mt-1">
               Use um número que já esteja em uso no WhatsApp Business há pelo menos 7 dias, com perfil comercial
@@ -172,31 +175,31 @@ export function WhatsAppIntegrationForm({
       )}
 
       {isPlatformAdmin && isConfigured && (
-        <div className="mb-4 flex flex-col gap-1 rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+        <div className="mb-4 flex flex-col gap-1 rounded-lg bg-white/[0.03] px-3 py-2.5 text-xs text-zinc-400">
           {status.whatsappProvider === "meta" && status.whatsappPhoneNumberId && (
             <span>Phone Number ID: {status.whatsappPhoneNumberId}</span>
           )}
           {status.whatsappProvider === "twilio" && status.twilioWhatsappNumber && (
             <span>Número: {status.twilioWhatsappNumber}</span>
           )}
-          <Button type="button" variant="danger" className="mt-2 w-fit" onClick={handleRemove} disabled={removing}>
+          <Button type="button" variant="danger" className="mt-2 w-fit" onClick={() => setConfirmRemove(true)} disabled={removing}>
             {removing ? "Removendo..." : "Remover integração e voltar ao padrão do sistema"}
           </Button>
         </div>
       )}
 
       {error && (
-        <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
+        <p className="mb-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-200">
           {error}
         </p>
       )}
       {savedAt && (
-        <p className="mb-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-300">
+        <p className="mb-3 rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
           Integração salva com sucesso.
         </p>
       )}
       {removedAt && (
-        <p className="mb-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-900/30 dark:text-green-300">
+        <p className="mb-3 rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
           Integração removida — voltou a usar o padrão do sistema.
         </p>
       )}
@@ -283,6 +286,15 @@ export function WhatsAppIntegrationForm({
           </div>
         </form>
       )}
+      <ConfirmDialog
+        open={confirmRemove}
+        tone="danger"
+        title="Remover a integração do WhatsApp?"
+        description="A Donna para de receber e responder as mensagens deste número até a integração ser configurada de novo."
+        confirmLabel="Remover integração"
+        onConfirm={handleRemove}
+        onClose={() => setConfirmRemove(false)}
+      />
     </section>
   );
 }

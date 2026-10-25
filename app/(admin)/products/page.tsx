@@ -1,21 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { FileSpreadsheet, ImageIcon, Package, Pencil, Plus, SearchX, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { ProductForm, type ProductFormValues } from "@/components/admin/ProductForm";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { EmptyState, currency, integer } from "@/components/admin/ui";
+import {
+  ErrorBanner,
+  FilterSelect,
+  PageHeader,
+  SearchField,
+  Segmented,
+  SkeletonRows,
+  StatusMessage,
+  Switch,
+  tableStyles,
+} from "@/components/admin/page-ui";
+import { cn } from "@/lib/cn";
 import type { SerializedProduct, StockStatus } from "@/services/stock";
 
 type StockFilter = StockStatus | "all";
-
-const STOCK_FILTERS: { value: StockFilter; label: string }[] = [
-  { value: "all", label: "Todos" },
-  { value: "low_stock", label: "Estoque baixo" },
-  { value: "out_of_stock", label: "Sem estoque" },
-];
+type ActiveFilter = "all" | "active" | "inactive";
+type Sort = "name" | "price-asc" | "price-desc" | "stock-asc";
 
 const STOCK_BADGE: Record<StockStatus, { label: string; tone: "success" | "warning" | "danger" }> = {
   in_stock: { label: "Em estoque", tone: "success" },
@@ -23,21 +33,34 @@ const STOCK_BADGE: Record<StockStatus, { label: string; tone: "success" | "warni
   out_of_stock: { label: "Sem estoque", tone: "danger" },
 };
 
-const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-
 type FormMode = { type: "closed" } | { type: "create" } | { type: "edit"; product: SerializedProduct };
 
+function Thumb({ url, name }: { url: string | null; name: string }) {
+  return (
+    <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/[0.07] bg-white/[0.03] text-zinc-600">
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- URL externa cadastrada pela loja
+        <img src={url} alt="" className="size-full object-cover" loading="lazy" title={name} />
+      ) : (
+        <ImageIcon className="size-4" aria-hidden />
+      )}
+    </span>
+  );
+}
+
 export default function ProductsPage() {
-  const [products, setProducts] = useState<SerializedProduct[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [listError, setListError] = useState<string | null>(null);
   // Atalhos vindos do dashboard: /products?busca=Nome e /products?estoque=baixo|esgotado.
   const searchParams = useSearchParams();
+  const [products, setProducts] = useState<SerializedProduct[] | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
   const [search, setSearch] = useState(() => searchParams.get("busca") ?? "");
   const [stockFilter, setStockFilter] = useState<StockFilter>(() => {
     const estoque = searchParams.get("estoque");
     return estoque === "baixo" ? "low_stock" : estoque === "esgotado" ? "out_of_stock" : "all";
   });
+  const [category, setCategory] = useState("all");
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+  const [sort, setSort] = useState<Sort>("name");
   const [categoryNames, setCategoryNames] = useState<string[]>([]);
   const [defaultMinStock, setDefaultMinStock] = useState(2);
 
@@ -45,52 +68,90 @@ export default function ProductsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | undefined>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string> | undefined>();
+  const [notice, setNotice] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<SerializedProduct | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [toggling, setToggling] = useState<string | null>(null);
 
   const loadProducts = useCallback(async () => {
-    setLoading(true);
     setListError(null);
     try {
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      if (stockFilter !== "all") params.set("stockStatus", stockFilter);
-
-      const res = await fetch(`/api/admin/products?${params.toString()}`);
+      const res = await fetch("/api/admin/products", { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Erro ao carregar produtos");
       setProducts(json.data);
     } catch (error) {
       setListError(error instanceof Error ? error.message : "Erro ao carregar produtos");
-    } finally {
-      setLoading(false);
     }
-  }, [search, stockFilter]);
+  }, []);
 
   useEffect(() => {
-    const timer = setTimeout(loadProducts, 300);
-    return () => clearTimeout(timer);
-  }, [loadProducts]);
-
-  useEffect(() => {
+    const timer = setTimeout(loadProducts, 0);
     fetch("/api/admin/categories")
       .then((res) => res.json())
       .then((json) => setCategoryNames((json.data ?? []).map((c: { name: string }) => c.name)))
       .catch(() => setCategoryNames([]));
-
     fetch("/api/admin/settings")
       .then((res) => res.json())
       .then((json) => {
         if (typeof json.data?.defaultMinStock === "number") setDefaultMinStock(json.data.defaultMinStock);
       })
       .catch(() => {});
-  }, []);
+    return () => clearTimeout(timer);
+  }, [loadProducts]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  // Busca + categoria + ativo (base das contagens de estoque).
+  const base = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return (products ?? []).filter((p) => {
+      if (category !== "all" && (p.categoryName ?? "") !== category) return false;
+      if (activeFilter === "active" && !p.active) return false;
+      if (activeFilter === "inactive" && p.active) return false;
+      if (!term) return true;
+      return [p.name, p.sku, p.brand, p.model, p.compatibility].some((field) => (field ?? "").toLowerCase().includes(term));
+    });
+  }, [products, search, category, activeFilter]);
 
   const counts = useMemo(
     () => ({
-      low: products.filter((p) => p.stockStatus === "low_stock").length,
-      out: products.filter((p) => p.stockStatus === "out_of_stock").length,
+      all: base.length,
+      in_stock: base.filter((p) => p.stockStatus === "in_stock").length,
+      low_stock: base.filter((p) => p.stockStatus === "low_stock").length,
+      out_of_stock: base.filter((p) => p.stockStatus === "out_of_stock").length,
     }),
+    [base]
+  );
+
+  const visible = useMemo(() => {
+    const list = stockFilter === "all" ? base : base.filter((p) => p.stockStatus === stockFilter);
+    const sorted = [...list];
+    if (sort === "name") sorted.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    if (sort === "price-asc") sorted.sort((a, b) => a.price - b.price);
+    if (sort === "price-desc") sorted.sort((a, b) => b.price - a.price);
+    if (sort === "stock-asc") sorted.sort((a, b) => a.stockQuantity - b.stockQuantity);
+    return sorted;
+  }, [base, stockFilter, sort]);
+
+  const categoriesInUse = useMemo(
+    () => [...new Set((products ?? []).map((p) => p.categoryName).filter((c): c is string => Boolean(c)))].sort(),
     [products]
   );
+  const activeCount = (products ?? []).filter((p) => p.active).length;
+  const hasFilters = search !== "" || stockFilter !== "all" || category !== "all" || activeFilter !== "all";
+
+  function resetFilters() {
+    setSearch("");
+    setStockFilter("all");
+    setCategory("all");
+    setActiveFilter("all");
+  }
 
   function toPayload(values: ProductFormValues) {
     return {
@@ -109,13 +170,20 @@ export default function ProductsPage() {
     };
   }
 
-  async function handleCreate(values: ProductFormValues) {
+  function closeForm() {
+    setFormMode({ type: "closed" });
+    setFormError(undefined);
+    setFieldErrors(undefined);
+  }
+
+  async function handleSave(values: ProductFormValues) {
+    const editing = formMode.type === "edit" ? formMode.product : null;
     setSubmitting(true);
     setFormError(undefined);
     setFieldErrors(undefined);
     try {
-      const res = await fetch("/api/admin/products", {
-        method: "POST",
+      const res = await fetch(editing ? `/api/admin/products/${editing.id}` : "/api/admin/products", {
+        method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(toPayload(values)),
       });
@@ -125,7 +193,8 @@ export default function ProductsPage() {
         setFieldErrors(flattenIssues(json.issues));
         return;
       }
-      setFormMode({ type: "closed" });
+      closeForm();
+      setNotice(editing ? `“${values.name}” atualizado.` : `“${values.name}” cadastrado.`);
       await loadProducts();
     } catch {
       setFormError("Erro de conexão ao salvar produto");
@@ -134,188 +203,286 @@ export default function ProductsPage() {
     }
   }
 
-  async function handleUpdate(id: string, values: ProductFormValues) {
-    setSubmitting(true);
-    setFormError(undefined);
-    setFieldErrors(undefined);
+  async function handleToggleActive(product: SerializedProduct, active: boolean) {
+    setToggling(product.id);
+    // otimista: muda na hora e volta se o servidor recusar
+    setProducts((list) => list?.map((p) => (p.id === product.id ? { ...p, active } : p)) ?? list);
     try {
-      const res = await fetch(`/api/admin/products/${id}`, {
+      const res = await fetch(`/api/admin/products/${product.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(toPayload(values)),
+        body: JSON.stringify({ active }),
       });
-      const json = await res.json();
-      if (!res.ok) {
-        setFormError(json.error ?? "Erro ao salvar produto");
-        setFieldErrors(flattenIssues(json.issues));
-        return;
-      }
-      setFormMode({ type: "closed" });
-      await loadProducts();
+      if (!res.ok) throw new Error();
     } catch {
-      setFormError("Erro de conexão ao salvar produto");
+      setProducts((list) => list?.map((p) => (p.id === product.id ? { ...p, active: !active } : p)) ?? list);
+      setListError(`Não foi possível ${active ? "ativar" : "desativar"} “${product.name}”. Tente de novo.`);
     } finally {
-      setSubmitting(false);
+      setToggling(null);
     }
   }
 
-  async function handleDelete(product: SerializedProduct) {
-    if (!confirm(`Excluir "${product.name}"? Essa ação não pode ser desfeita.`)) return;
+  async function handleDelete() {
+    if (!toDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
     try {
-      const res = await fetch(`/api/admin/products/${product.id}`, { method: "DELETE" });
-      const json = await res.json();
-      if (!res.ok) {
-        alert(json.error ?? "Erro ao excluir produto");
-        return;
-      }
+      const res = await fetch(`/api/admin/products/${toDelete.id}`, { method: "DELETE" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Erro ao excluir produto");
+      setNotice(`“${toDelete.name}” excluído.`);
+      setToDelete(null);
       await loadProducts();
-    } catch {
-      alert("Erro de conexão ao excluir produto");
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Erro de conexão ao excluir produto");
+    } finally {
+      setDeleting(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Produtos</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            {counts.out > 0 && `${counts.out} sem estoque`}
-            {counts.out > 0 && counts.low > 0 && " · "}
-            {counts.low > 0 && `${counts.low} com estoque baixo`}
-            {counts.out === 0 && counts.low === 0 && "Estoque em dia"}
-          </p>
+    <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-5">
+      <PageHeader
+        title="Produtos"
+        description={
+          products === null
+            ? "Carregando catálogo…"
+            : `${integer.format(products.length)} ${products.length === 1 ? "produto" : "produtos"} · ${integer.format(activeCount)} ativos para a Donna vender`
+        }
+        actions={
+          <>
+            <Link
+              href="/products/import"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 text-sm font-medium text-zinc-100 transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-emerald-500"
+            >
+              <FileSpreadsheet className="size-4" aria-hidden />
+              Importar planilha
+            </Link>
+            <Button onClick={() => setFormMode({ type: "create" })}>
+              <Plus className="size-4" aria-hidden />
+              Novo produto
+            </Button>
+          </>
+        }
+      />
+
+      <div className="flex flex-col gap-3">
+        <Segmented<StockFilter>
+          label="Estoque"
+          value={stockFilter}
+          onChange={setStockFilter}
+          options={[
+            { value: "all", label: "Todos", count: counts.all },
+            { value: "in_stock", label: "Em estoque", count: counts.in_stock },
+            { value: "low_stock", label: "Estoque baixo", count: counts.low_stock },
+            { value: "out_of_stock", label: "Sem estoque", count: counts.out_of_stock },
+          ]}
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchField value={search} onChange={setSearch} placeholder="Nome, SKU, marca ou modelo" label="Buscar produtos" className="w-full sm:w-64" />
+          {categoriesInUse.length > 0 && (
+            <FilterSelect<string>
+              label="Categoria"
+              value={category}
+              onChange={setCategory}
+              options={[{ value: "all", label: "Todas as categorias" }, ...categoriesInUse.map((c) => ({ value: c, label: c }))]}
+            />
+          )}
+          <FilterSelect<ActiveFilter>
+            label="Situação"
+            value={activeFilter}
+            onChange={setActiveFilter}
+            options={[
+              { value: "all", label: "Ativos e inativos" },
+              { value: "active", label: "Só ativos" },
+              { value: "inactive", label: "Só inativos" },
+            ]}
+          />
+          <FilterSelect<Sort>
+            label="Ordenar"
+            value={sort}
+            onChange={setSort}
+            options={[
+              { value: "name", label: "Nome (A–Z)" },
+              { value: "price-asc", label: "Menor preço" },
+              { value: "price-desc", label: "Maior preço" },
+              { value: "stock-asc", label: "Menor estoque" },
+            ]}
+          />
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={resetFilters}>
+              Limpar filtros
+            </Button>
+          )}
         </div>
-        <div className="flex gap-2">
-          <Link href="/products/import">
-            <Button variant="secondary">📄 Importar planilha</Button>
-          </Link>
-          <Button onClick={() => setFormMode({ type: "create" })}>+ Adicionar produto</Button>
-        </div>
+      </div>
+
+      {notice && <StatusMessage tone="success">{notice}</StatusMessage>}
+      {listError && <ErrorBanner message={listError} onRetry={loadProducts} />}
+
+      <div className={cn(tableStyles.wrap, "dash-enter")}>
+        {products === null && !listError && <SkeletonRows rows={8} />}
+
+        {products && products.length === 0 && (
+          <EmptyState
+            icon={Package}
+            title="Seu catálogo está vazio"
+            description="Cadastre os produtos para a Donna consultar preço e estoque quando o cliente perguntar. Dá para importar tudo de uma planilha."
+            action={{ href: "/products/import", label: "Importar planilha" }}
+            className="py-16"
+          />
+        )}
+
+        {products && products.length > 0 && visible.length === 0 && (
+          <div className="flex flex-col items-center py-16 text-center">
+            <SearchX className="size-6 text-zinc-500" aria-hidden />
+            <p className="mt-3 text-sm font-medium text-zinc-200">Nenhum produto com esses filtros</p>
+            <Button variant="secondary" size="sm" className="mt-4" onClick={resetFilters}>
+              Limpar filtros
+            </Button>
+          </div>
+        )}
+
+        {visible.length > 0 && (
+          <>
+            <table className="hidden w-full text-sm md:table">
+              <thead className={tableStyles.head}>
+                <tr>
+                  <th scope="col" className={tableStyles.th}>Produto</th>
+                  <th scope="col" className={cn(tableStyles.th, "hidden lg:table-cell")}>SKU</th>
+                  <th scope="col" className={cn(tableStyles.th, "hidden xl:table-cell")}>Categoria</th>
+                  <th scope="col" className={cn(tableStyles.th, "text-right")}>Preço</th>
+                  <th scope="col" className={tableStyles.th}>Estoque</th>
+                  <th scope="col" className={tableStyles.th}>Ativo</th>
+                  <th scope="col" className={cn(tableStyles.th, "w-24")}>
+                    <span className="sr-only">Ações</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((product) => {
+                  const stock = STOCK_BADGE[product.stockStatus];
+                  return (
+                    <tr key={product.id} className={cn(tableStyles.row, !product.active && "opacity-60")}>
+                      <td className={tableStyles.td}>
+                        <span className="flex items-center gap-3">
+                          <Thumb url={product.imageUrl} name={product.name} />
+                          <span className="min-w-0">
+                            <span className="block max-w-[320px] truncate font-medium text-zinc-100">{product.name}</span>
+                            {(product.brand || product.model) && (
+                              <span className="block truncate text-xs text-zinc-500">
+                                {[product.brand, product.model].filter(Boolean).join(" · ")}
+                              </span>
+                            )}
+                          </span>
+                        </span>
+                      </td>
+                      <td className={cn(tableStyles.td, "hidden font-mono text-xs text-zinc-400 lg:table-cell")}>{product.sku}</td>
+                      <td className={cn(tableStyles.td, "hidden text-zinc-400 xl:table-cell")}>{product.categoryName ?? <span className="text-zinc-600">—</span>}</td>
+                      <td className={cn(tableStyles.td, "text-right font-medium tabular-nums text-zinc-100")}>{currency.format(product.price)}</td>
+                      <td className={tableStyles.td}>
+                        <span className="flex flex-col items-start gap-1">
+                          <Badge tone={stock.tone}>{stock.label}</Badge>
+                          <span className="text-xs tabular-nums text-zinc-500">
+                            {product.stockQuantity} un. · mín. {product.minStock}
+                          </span>
+                        </span>
+                      </td>
+                      <td className={tableStyles.td}>
+                        <Switch
+                          size="sm"
+                          checked={product.active}
+                          disabled={toggling === product.id}
+                          onChange={(active) => handleToggleActive(product, active)}
+                          label={`${product.active ? "Desativar" : "Ativar"} ${product.name}`}
+                        />
+                      </td>
+                      <td className={tableStyles.td}>
+                        <span className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setFormMode({ type: "edit", product })}
+                            aria-label={`Editar ${product.name}`}
+                            className="grid size-8 place-items-center rounded-lg text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-emerald-500"
+                          >
+                            <Pencil className="size-4" aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeleteError(null);
+                              setToDelete(product);
+                            }}
+                            aria-label={`Excluir ${product.name}`}
+                            className="grid size-8 place-items-center rounded-lg text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-300 focus-visible:outline-2 focus-visible:outline-emerald-500"
+                          >
+                            <Trash2 className="size-4" aria-hidden />
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {/* Celular: lista compacta; tocar abre a edição */}
+            <ul className="md:hidden">
+              {visible.map((product) => {
+                const stock = STOCK_BADGE[product.stockStatus];
+                return (
+                  <li key={product.id} className={cn("flex items-center gap-3 border-t border-white/[0.05] px-4 py-3 first:border-t-0", !product.active && "opacity-60")}>
+                    <button type="button" onClick={() => setFormMode({ type: "edit", product })} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                      <Thumb url={product.imageUrl} name={product.name} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-zinc-100">{product.name}</span>
+                        <span className="mt-1 flex items-center gap-2">
+                          <Badge tone={stock.tone}>{product.stockQuantity} un.</Badge>
+                          <span className="text-sm font-medium tabular-nums text-zinc-200">{currency.format(product.price)}</span>
+                        </span>
+                      </span>
+                    </button>
+                    <Switch
+                      size="sm"
+                      checked={product.active}
+                      disabled={toggling === product.id}
+                      onChange={(active) => handleToggleActive(product, active)}
+                      label={`${product.active ? "Desativar" : "Ativar"} ${product.name}`}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
       </div>
 
       {formMode.type !== "closed" && (
         <ProductForm
           key={formMode.type === "edit" ? formMode.product.id : "create"}
+          open
           product={formMode.type === "edit" ? formMode.product : undefined}
           categoryOptions={categoryNames}
           defaultMinStock={defaultMinStock}
           submitting={submitting}
           formError={formError}
           fieldErrors={fieldErrors}
-          onCancel={() => {
-            setFormMode({ type: "closed" });
-            setFormError(undefined);
-            setFieldErrors(undefined);
-          }}
-          onSubmit={(values) =>
-            formMode.type === "edit" ? handleUpdate(formMode.product.id, values) : handleCreate(values)
-          }
+          onClose={closeForm}
+          onSubmit={handleSave}
         />
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="Buscar por nome, SKU, marca ou modelo..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-72"
-        />
-        <div className="flex gap-1">
-          {STOCK_FILTERS.map((filter) => (
-            <button
-              key={filter.value}
-              onClick={() => setStockFilter(filter.value)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                stockFilter === filter.value
-                  ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
-                  : "bg-white text-zinc-700 border border-zinc-300 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700"
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {listError && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
-          {listError}
-        </p>
-      )}
-
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-        <table className="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
-          <thead className="bg-zinc-50 dark:bg-zinc-900">
-            <tr>
-              {["Produto", "Categoria", "SKU", "Preço", "Estoque", "Status", "Ações"].map((h) => (
-                <th key={h} className="px-4 py-2 text-left font-medium text-zinc-500 dark:text-zinc-400">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
-            {loading && (
-              <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-zinc-500">
-                  Carregando...
-                </td>
-              </tr>
-            )}
-            {!loading && products.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-zinc-500">
-                  Nenhum produto encontrado.
-                </td>
-              </tr>
-            )}
-            {!loading &&
-              products.map((product) => (
-                <tr key={product.id}>
-                  <td className="px-4 py-2">
-                    <div className="font-medium text-zinc-900 dark:text-zinc-50">{product.name}</div>
-                    <div className="text-xs text-zinc-500">{product.brand} {product.model}</div>
-                  </td>
-                  <td className="px-4 py-2 text-zinc-600 dark:text-zinc-400">
-                    {product.categoryName ?? "—"}
-                  </td>
-                  <td className="px-4 py-2 text-zinc-600 dark:text-zinc-400">{product.sku}</td>
-                  <td className="px-4 py-2 text-zinc-600 dark:text-zinc-400">
-                    {currency.format(product.price)}
-                  </td>
-                  <td className="px-4 py-2 text-zinc-600 dark:text-zinc-400">
-                    {product.stockQuantity} (mín. {product.minStock})
-                  </td>
-                  <td className="px-4 py-2">
-                    <Badge tone={STOCK_BADGE[product.stockStatus].tone}>
-                      {STOCK_BADGE[product.stockStatus].label}
-                    </Badge>
-                    {!product.active && (
-                      <span className="ml-1">
-                        <Badge tone="neutral">Inativo</Badge>
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="secondary"
-                        className="px-2 py-1"
-                        onClick={() => setFormMode({ type: "edit", product })}
-                      >
-                        Editar
-                      </Button>
-                      <Button variant="danger" className="px-2 py-1" onClick={() => handleDelete(product)}>
-                        Excluir
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+      <ConfirmDialog
+        open={toDelete !== null}
+        tone="danger"
+        title={`Excluir “${toDelete?.name ?? ""}”?`}
+        description="O produto sai do catálogo e a Donna para de oferecê-lo. Isso não pode ser desfeito. Se for só temporário, prefira desativar."
+        confirmLabel="Excluir produto"
+        loading={deleting}
+        error={deleteError}
+        onConfirm={handleDelete}
+        onClose={() => setToDelete(null)}
+      />
     </div>
   );
 }
