@@ -15,6 +15,7 @@ const yearlySavings = yearlyFullPrice - PRICING.yearly;
 // Desconto do anual em relação a 12 mensalidades (ex: 4.188 → 3.490 = 17%).
 const yearlyDiscountPercent = Math.round((yearlySavings / yearlyFullPrice) * 100);
 const yearlyPerMonth = currency.format(Math.round(PRICING.yearly / 12));
+const monthlyDiscountPercent = Math.round((1 - PRICING.monthly / PRICING.monthlyListPrice) * 100);
 
 const PLANS = [
   {
@@ -71,18 +72,18 @@ function Pricing({ onPick }: { onPick: (plan: Plan) => void }) {
                 )}
                 <p className="flex items-center gap-2 font-medium text-muted-foreground">
                   {p.name}
-                  {hi && (
-                    <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                      -{yearlyDiscountPercent}%
-                    </span>
-                  )}
+                  <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                    -{hi ? yearlyDiscountPercent : monthlyDiscountPercent}%
+                  </span>
                 </p>
-                {hi && (
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    De <span className="line-through">{currency.format(yearlyFullPrice)}</span> por
-                  </p>
-                )}
-                <p className={cn("flex items-baseline gap-1", hi ? "mt-1" : "mt-4")}>
+                <p className="mt-4 text-sm text-muted-foreground">
+                  De{" "}
+                  <span className="line-through">
+                    {currency.format(hi ? yearlyFullPrice : PRICING.monthlyListPrice)}
+                  </span>{" "}
+                  por
+                </p>
+                <p className="mt-1 flex items-baseline gap-1">
                   <span className="text-5xl font-semibold tracking-tight">{p.price}</span>
                   <span className="text-muted-foreground">{p.per}</span>
                 </p>

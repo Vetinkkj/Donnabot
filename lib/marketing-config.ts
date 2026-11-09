@@ -20,6 +20,8 @@ export const CONTACT_WHATSAPP = "";
 
 export const PRICING = {
   monthly: 349,
+  // Preço "de" exibido riscado no card do mensal (decisão comercial do dono).
+  monthlyListPrice: 450,
   // Anual = 10 mensalidades (2 meses de graça, ~17% de desconto).
   yearly: 3490,
   // Garantia: a loja paga e pode pedir reembolso integral até X dias depois.

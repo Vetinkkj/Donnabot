@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DashboardShowcase } from "@/components/landing/dashboard-showcase";
 import { Demo } from "@/components/landing/demo";
 import { Hero, Nav } from "@/components/landing/hero";
 import { PlansAndSignup } from "@/components/landing/plans";
@@ -27,6 +28,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <main>
         <Hero />
         <Demo />
+        <DashboardShowcase />
         <Benefits />
         <HowItWorks />
         <Trust />
