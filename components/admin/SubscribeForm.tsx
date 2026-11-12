@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/Button";
 import { fieldClass } from "@/components/ui/Input";
 import { PRICING } from "@/lib/marketing-config";
 
-type Plan = "monthly" | "yearly";
+type Plan = "monthly" | "yearly" | "founder";
 type Method = "PIX" | "CREDIT_CARD" | "BOLETO";
 
 type CheckoutResult =
@@ -29,6 +29,14 @@ const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" 
 const brl0 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 const PLANS: Record<Plan, { label: string; price: number; per: string; listPrice: number; badge: string; note: string }> = {
+  founder: {
+    label: "Fundador",
+    price: PRICING.founder,
+    per: "/mês",
+    listPrice: PRICING.monthly,
+    badge: `Vagas limitadas`,
+    note: `Preço garantido por ${PRICING.founderLockMonths} meses. Só para as ${PRICING.founderSlots} primeiras lojas.`,
+  },
   monthly: {
     label: "Mensal",
     price: PRICING.monthly,
@@ -199,8 +207,18 @@ function BoletoPayment({ result, onBack }: { result: CheckoutResult; onBack: () 
 }
 
 /** Checkout da assinatura (Asaas): plano, CPF/CNPJ e forma de pagamento, com resumo ao lado. */
-export function SubscribeForm({ defaultPlan, storeName }: { defaultPlan: Plan; storeName: string }) {
-  const [plan, setPlan] = useState<Plan>(defaultPlan);
+export function SubscribeForm({
+  defaultPlan,
+  storeName,
+  founderAvailable,
+}: {
+  defaultPlan: Plan;
+  storeName: string;
+  /** Há vaga de fundador (ou a loja já é fundadora). Sem vaga, a opção não aparece. */
+  founderAvailable: boolean;
+}) {
+  const [plan, setPlan] = useState<Plan>(defaultPlan === "founder" && !founderAvailable ? "monthly" : defaultPlan);
+  const planIds = (Object.keys(PLANS) as Plan[]).filter((id) => id !== "founder" || founderAvailable);
   const [method, setMethod] = useState<Method>("PIX");
   const [document, setDocument] = useState("");
   const [loading, setLoading] = useState(false);
@@ -251,8 +269,8 @@ export function SubscribeForm({ defaultPlan, storeName }: { defaultPlan: Plan; s
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-7" noValidate>
             <Step n={1} title="Escolha o plano">
-              <div role="radiogroup" aria-label="Plano" className="grid gap-3 sm:grid-cols-2">
-                {(Object.keys(PLANS) as Plan[]).map((id) => {
+              <div role="radiogroup" aria-label="Plano" className={cn("grid gap-3", planIds.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+                {planIds.map((id) => {
                   const p = PLANS[id];
                   const active = plan === id;
                   return (

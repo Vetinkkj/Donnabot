@@ -9,6 +9,7 @@ import { LogoutButton } from "@/components/admin/LogoutButton";
 import { WaitingCustomerAlert } from "@/components/admin/WaitingCustomerAlert";
 import { SubscribeForm } from "@/components/admin/SubscribeForm";
 import { isAsaasConfigured } from "@/lib/asaas";
+import { getFounderSpotsLeft } from "@/services/billing";
 import { SIDEBAR_COOKIE } from "@/lib/ui-prefs";
 
 /** Tema do painel: sempre escuro (classe .dark), fonte Geist e controles nativos escuros. */
@@ -29,7 +30,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   if (session?.user?.storeId && !session.user.isPlatformAdmin) {
     const store = await db.store.findUnique({
       where: { id: session.user.storeId },
-      select: { name: true, status: true, subscriptionExpiresAt: true, intendedPlan: true },
+      select: { name: true, status: true, subscriptionExpiresAt: true, intendedPlan: true, asaasSubscriptionId: true },
     });
 
     if (store && !isStoreOperational(store)) {
@@ -69,7 +70,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 </h1>
                 <p className="mt-1.5 max-w-2xl text-sm text-zinc-400">{message}</p>
               </div>
-              <SubscribeForm defaultPlan={store.intendedPlan === "yearly" ? "yearly" : "monthly"} storeName={store.name} />
+              <SubscribeForm
+                defaultPlan={store.intendedPlan === "yearly" || store.intendedPlan === "founder" ? store.intendedPlan : "monthly"}
+                storeName={store.name}
+                founderAvailable={(store.intendedPlan === "founder" && store.asaasSubscriptionId !== null) || (await getFounderSpotsLeft()) > 0}
+              />
               <p className="text-xs text-zinc-500">
                 Dúvidas? Escreva para{" "}
                 <a href={`mailto:${CONTACT_EMAIL}`} className="text-zinc-300 underline-offset-2 hover:underline">

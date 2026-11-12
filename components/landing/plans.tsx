@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Sparkles } from "lucide-react";
 import { signupAction } from "@/app/signup/actions";
 import { cn } from "@/lib/cn";
 import { PRICING } from "@/lib/marketing-config";
 import { SectionHead } from "./primitives";
 
-type Plan = "monthly" | "yearly";
+type Plan = "monthly" | "yearly" | "founder";
 
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const yearlyFullPrice = PRICING.monthly * 12;
@@ -36,7 +36,43 @@ const PLANS = [
   },
 ];
 
-function Pricing({ onPick }: { onPick: (plan: Plan) => void }) {
+/** Oferta de lançamento: só aparece enquanto houver vaga (contada no banco). */
+function FounderOffer({ spotsLeft, onPick }: { spotsLeft: number; onPick: () => void }) {
+  return (
+    <div className="reveal relative mt-14 overflow-hidden rounded-3xl border border-primary/40 bg-primary/[0.06] p-8 shadow-glow">
+      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <div className="max-w-xl">
+          <p className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+            <Sparkles className="size-3.5" aria-hidden />
+            Plano Fundador · restam {spotsLeft} de {PRICING.founderSlots} vagas
+          </p>
+          <h3 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
+            Seja uma das {PRICING.founderSlots} primeiras lojas da Donna
+          </h3>
+          <p className="mt-2 text-muted-foreground">
+            Preço de fundador garantido por {PRICING.founderLockMonths} meses, com tudo do plano completo. Em troca, a gente
+            só pede a sua opinião para deixar a Donna cada vez melhor.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-col items-start gap-3 md:items-end">
+          <p className="flex items-baseline gap-1">
+            <span className="text-5xl font-semibold tracking-tight">{currency.format(PRICING.founder)}</span>
+            <span className="text-muted-foreground">/mês</span>
+          </p>
+          <button
+            type="button"
+            onClick={onPick}
+            className="flex h-12 items-center justify-center gap-2 rounded-full bg-gradient-primary px-6 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 active:scale-[0.98]"
+          >
+            Quero ser fundador <ArrowRight className="size-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Pricing({ onPick, founderSpotsLeft }: { onPick: (plan: Plan) => void; founderSpotsLeft: number }) {
   const features = [
     `Garantia de ${PRICING.refundDays} dias: não gostou, devolvemos o valor`,
     "Acesso às funcionalidades do plano atual",
@@ -54,7 +90,8 @@ function Pricing({ onPick }: { onPick: (plan: Plan) => void }) {
           title="Escolha como sua loja quer começar."
           sub={`Experimente a Donnabot por ${PRICING.refundDays} dias com reembolso garantido.`}
         />
-        <div className="mt-14 grid gap-5 md:grid-cols-2">
+        {founderSpotsLeft > 0 && <FounderOffer spotsLeft={founderSpotsLeft} onPick={go("founder")} />}
+        <div className={cn("grid gap-5 md:grid-cols-2", founderSpotsLeft > 0 ? "mt-5" : "mt-14")}>
           {PLANS.map((p) => {
             const hi = p.id === "yearly";
             return (
@@ -138,12 +175,21 @@ function Signup({
   setPlan,
   error,
   origin,
+  founderSpotsLeft,
 }: {
   plan: Plan;
   setPlan: (plan: Plan) => void;
   error?: string;
   origin: "landing" | "signup";
+  founderSpotsLeft: number;
 }) {
+  const options: { id: Plan; label: string }[] = [
+    ...(founderSpotsLeft > 0 ? [{ id: "founder" as Plan, label: `Fundador · ${currency.format(PRICING.founder)}/mês` }] : []),
+    ...PLANS.map((p) => ({
+      id: p.id,
+      label: `${p.name} · ${p.price}${p.per}${p.id === "yearly" ? ` (-${yearlyDiscountPercent}%)` : ""}`,
+    })),
+  ];
   return (
     <section id="cadastro" className="py-24 sm:py-32">
       <div className="mx-auto grid max-w-6xl gap-12 px-5 sm:px-8 lg:grid-cols-2 lg:items-center">
@@ -154,21 +200,19 @@ function Signup({
             WhatsApp.
           </p>
           <div className="mt-8 inline-flex flex-wrap rounded-full border border-border p-1" role="radiogroup" aria-label="Plano">
-            {PLANS.map((p) => (
+            {options.map((o) => (
               <button
-                key={p.id}
+                key={o.id}
                 type="button"
                 role="radio"
-                aria-checked={plan === p.id}
-                onClick={() => setPlan(p.id)}
+                aria-checked={plan === o.id}
+                onClick={() => setPlan(o.id)}
                 className={cn(
                   "rounded-full px-5 py-2 text-sm font-medium transition-all",
-                  plan === p.id ? "bg-gradient-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                  plan === o.id ? "bg-gradient-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {p.name} · {p.price}
-                {p.per}
-                {p.id === "yearly" && <span className="ml-1.5 text-xs font-semibold">(-{yearlyDiscountPercent}%)</span>}
+                {o.label}
               </button>
             ))}
           </div>
@@ -230,12 +274,20 @@ function Signup({
 }
 
 /** Planos + cadastro dividem o plano escolhido (clicar num card já marca no formulário). */
-export function PlansAndSignup({ error, origin = "landing" }: { error?: string; origin?: "landing" | "signup" }) {
+export function PlansAndSignup({
+  error,
+  origin = "landing",
+  founderSpotsLeft = 0,
+}: {
+  error?: string;
+  origin?: "landing" | "signup";
+  founderSpotsLeft?: number;
+}) {
   const [plan, setPlan] = useState<Plan>("yearly");
   return (
     <>
-      <Pricing onPick={setPlan} />
-      <Signup plan={plan} setPlan={setPlan} error={error} origin={origin} />
+      <Pricing onPick={setPlan} founderSpotsLeft={founderSpotsLeft} />
+      <Signup plan={plan} setPlan={setPlan} error={error} origin={origin} founderSpotsLeft={founderSpotsLeft} />
     </>
   );
 }

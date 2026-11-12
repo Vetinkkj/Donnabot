@@ -24,6 +24,11 @@ export const PRICING = {
   monthlyListPrice: 450,
   // Anual = 10 mensalidades (2 meses de graça, ~17% de desconto).
   yearly: 3490,
+  // Plano Fundador: oferta de lançamento para as primeiras lojas, com o preço
+  // travado por um tempo (depois disso o valor da assinatura é ajustado no Asaas).
+  founder: 197,
+  founderSlots: 10,
+  founderLockMonths: 12,
   // Garantia: a loja paga e pode pedir reembolso integral até X dias depois.
   refundDays: 7,
 };

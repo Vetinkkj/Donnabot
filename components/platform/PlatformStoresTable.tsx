@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
+import { PRICING } from "@/lib/marketing-config";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
@@ -17,8 +18,9 @@ export type PlatformStoreRow = {
 };
 
 const PLAN_LABEL: Record<string, string> = {
-  monthly: "Mensal (R$ 300/mês)",
-  yearly: "Anual (R$ 3.000/ano)",
+  monthly: `Mensal (R$ ${PRICING.monthly}/mês)`,
+  yearly: `Anual (R$ ${PRICING.yearly.toLocaleString("pt-BR")}/ano)`,
+  founder: `Fundador (R$ ${PRICING.founder}/mês)`,
 };
 
 const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger"> = {

@@ -5,7 +5,7 @@ import { AsaasError } from "@/lib/asaas";
 import { startCheckout } from "@/services/billing";
 
 const bodySchema = z.object({
-  plan: z.enum(["monthly", "yearly"]),
+  plan: z.enum(["monthly", "yearly", "founder"]),
   method: z.enum(["PIX", "CREDIT_CARD", "BOLETO"]),
   cpfCnpj: z
     .string()

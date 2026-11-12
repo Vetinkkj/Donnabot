@@ -13,7 +13,7 @@ export const signupSchema = z
     password: z.string().min(8, "Senha precisa ter pelo menos 8 caracteres"),
     confirmPassword: z.string(),
     // Plano escolhido nos cards do site — opcional, só um indicativo.
-    plan: z.enum(["monthly", "yearly"]).optional(),
+    plan: z.enum(["monthly", "yearly", "founder"]).optional(),
     // Checkbox do formulário: o navegador manda "on" quando marcado.
     acceptTerms: z.literal("on", { message: "Para criar a loja, aceite os Termos de Uso e a Política de Privacidade" }),
   })

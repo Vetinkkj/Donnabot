@@ -13,7 +13,7 @@ export type CreateStoreWithOwnerInput = {
   ownerName: string;
   email: string;
   password: string;
-  plan?: "monthly" | "yearly";
+  plan?: "monthly" | "yearly" | "founder";
 };
 
 /** Cria uma loja nova e o usuário dono dela (role OWNER) em uma única transação. */

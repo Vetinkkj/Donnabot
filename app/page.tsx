@@ -6,6 +6,7 @@ import { PlansAndSignup } from "@/components/landing/plans";
 import { RevealOnScroll } from "@/components/landing/primitives";
 import { Benefits, FAQ, FinalCTA, Footer, HowItWorks, Trust } from "@/components/landing/sections";
 import { PRICING } from "@/lib/marketing-config";
+import { getFounderSpotsLeft } from "@/services/billing";
 
 export const metadata: Metadata = {
   title: "Donnabot — Atendimento e vendas pelo WhatsApp",
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 /** Página inicial (design feito no Lovable). O tema fica isolado em `.landing` (app/globals.css). */
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ erro?: string }> }) {
   const { erro } = await searchParams;
+  const founderSpotsLeft = await getFounderSpotsLeft().catch(() => 0);
   return (
     <div className="landing">
       <RevealOnScroll />
@@ -32,7 +34,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <Benefits />
         <HowItWorks />
         <Trust />
-        <PlansAndSignup error={erro} />
+        <PlansAndSignup error={erro} founderSpotsLeft={founderSpotsLeft} />
         <FAQ />
         <FinalCTA />
       </main>

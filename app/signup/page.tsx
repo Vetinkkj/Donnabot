@@ -4,6 +4,7 @@ import { PlansAndSignup } from "@/components/landing/plans";
 import { Eyebrow, RevealOnScroll } from "@/components/landing/primitives";
 import { Footer, HowItWorks } from "@/components/landing/sections";
 import { BRAND_NAME, PRICING } from "@/lib/marketing-config";
+import { getFounderSpotsLeft } from "@/services/billing";
 
 export const metadata: Metadata = {
   title: `Cadastre sua loja — ${BRAND_NAME}`,
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const params = await searchParams;
+  const founderSpotsLeft = await getFounderSpotsLeft().catch(() => 0);
 
   return (
     <div className="landing">
@@ -31,7 +33,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
             </p>
           </div>
         </section>
-        <PlansAndSignup error={params.error} origin="signup" />
+        <PlansAndSignup error={params.error} origin="signup" founderSpotsLeft={founderSpotsLeft} />
         <HowItWorks />
       </main>
       <Footer />

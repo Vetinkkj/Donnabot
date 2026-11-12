@@ -6,7 +6,7 @@ import { BRAND_NAME, PRICING } from "@/lib/marketing-config";
 // COBRANÇA DA ASSINATURA DA DONNA (lojas pagando a plataforma) via Asaas
 // ---------------------------------------------------------------------------
 
-export type BillingPlan = "monthly" | "yearly";
+export type BillingPlan = "monthly" | "yearly" | "founder";
 
 /** Dias de tolerância depois do vencimento antes de bloquear a loja (boleto compensa em até 1-2 dias úteis). */
 const GRACE_DAYS = 3;
@@ -27,7 +27,21 @@ function todayKey() {
 }
 
 function planValue(plan: BillingPlan) {
+  if (plan === "founder") return PRICING.founder;
   return plan === "yearly" ? PRICING.yearly : PRICING.monthly;
+}
+
+const PLAN_NAME: Record<BillingPlan, string> = { monthly: "mensal", yearly: "anual", founder: "Fundador" };
+
+/**
+ * Vagas do Plano Fundador que ainda restam. Conta as lojas fundadoras que já
+ * pagaram (liberadas, com assinatura no Asaas) — quem só se cadastrou não ocupa vaga.
+ */
+export async function getFounderSpotsLeft() {
+  const taken = await db.store.count({
+    where: { intendedPlan: "founder", status: "ACTIVE", asaasSubscriptionId: { not: null } },
+  });
+  return Math.max(PRICING.founderSlots - taken, 0);
 }
 
 /** Cobrança em aberto (pendente ou vencida) da assinatura, se houver. */
@@ -56,6 +70,12 @@ export async function startCheckout(
   const store = await db.store.findUniqueOrThrow({ where: { id: storeId } });
   if (store.status === "SUSPENDED") {
     throw new AsaasError(`O acesso desta loja foi suspenso. Fale com o suporte da ${BRAND_NAME}.`);
+  }
+
+  // Plano Fundador tem vagas limitadas; quem já é fundador (renovação) não disputa vaga.
+  const alreadyFounder = store.intendedPlan === "founder" && store.asaasSubscriptionId !== null;
+  if (input.plan === "founder" && !alreadyFounder && (await getFounderSpotsLeft()) === 0) {
+    throw new AsaasError("As vagas do Plano Fundador acabaram. Escolha o plano mensal ou o anual.");
   }
 
   let customerId = store.asaasCustomerId;
@@ -93,7 +113,7 @@ export async function startCheckout(
         value: planValue(input.plan),
         nextDueDate: todayKey(),
         cycle: input.plan === "yearly" ? "YEARLY" : "MONTHLY",
-        description: `${BRAND_NAME} — plano ${input.plan === "yearly" ? "anual" : "mensal"}`,
+        description: `${BRAND_NAME} — plano ${PLAN_NAME[input.plan]}`,
         externalReference: store.id,
       },
     });
