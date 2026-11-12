@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
+import Image from "next/image";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { isStoreOperational } from "@/services/store";
@@ -46,13 +47,54 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         ? `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(`Oi! Quero ativar o plano da loja "${store.name}".`)}`
         : null;
 
+      if (canSubscribe) {
+        // Checkout da assinatura em página própria (largo, com resumo ao lado).
+        return (
+          <div className={`${SHELL} flex flex-col`}>
+            <header className="flex items-center justify-between gap-4 border-b border-white/[0.06] px-4 py-3 sm:px-8">
+              <span className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight text-zinc-50">
+                <span className="relative block size-8 overflow-hidden rounded-lg bg-black ring-1 ring-white/10">
+                  <Image src="/logo-icon.png" alt="" fill sizes="32px" className="object-cover" />
+                </span>
+                {BRAND_NAME}
+              </span>
+              <div className="w-28">
+                <LogoutButton />
+              </div>
+            </header>
+            <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-8 sm:py-12">
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
+                  {expired ? "Renove sua assinatura" : "Ative sua loja"}
+                </h1>
+                <p className="mt-1.5 max-w-2xl text-sm text-zinc-400">{message}</p>
+              </div>
+              <SubscribeForm defaultPlan={store.intendedPlan === "yearly" ? "yearly" : "monthly"} storeName={store.name} />
+              <p className="text-xs text-zinc-500">
+                Dúvidas? Escreva para{" "}
+                <a href={`mailto:${CONTACT_EMAIL}`} className="text-zinc-300 underline-offset-2 hover:underline">
+                  {CONTACT_EMAIL}
+                </a>
+                {whatsappHref && (
+                  <>
+                    {" "}ou{" "}
+                    <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="text-zinc-300 underline-offset-2 hover:underline">
+                      fale no WhatsApp
+                    </a>
+                  </>
+                )}
+                .
+              </p>
+            </main>
+          </div>
+        );
+      }
+
       return (
         <div className={`${SHELL} flex items-center justify-center p-4`}>
           <div className="flex w-full max-w-sm flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-6 text-center dark:border-zinc-800 dark:bg-zinc-900">
             <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{store.name}</h1>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">{message}</p>
-            {canSubscribe && <SubscribeForm defaultPlan={store.intendedPlan === "yearly" ? "yearly" : "monthly"} />}
-            {canSubscribe && <p className="text-xs text-zinc-500 dark:text-zinc-400">Dúvidas? Fale com a gente:</p>}
             <div className="flex flex-col gap-2">
               {whatsappHref && (
                 <a

@@ -16,6 +16,7 @@ type AsaasPayment = {
   status: string;
   dueDate: string;
   invoiceUrl: string;
+  value: number;
   subscription?: string | null;
   customer?: string;
 };
@@ -35,15 +36,23 @@ async function findOpenPayment(subscriptionId: string) {
   return data.find((p) => p.status === "PENDING" || p.status === "OVERDUE");
 }
 
+export type PaymentMethod = "PIX" | "CREDIT_CARD" | "BOLETO";
+
+export type CheckoutResult =
+  | { method: "PIX"; value: number; dueDate: string; invoiceUrl: string; qrCodeImage: string; copyPaste: string; expiresAt: string | null }
+  | { method: "CREDIT_CARD" | "BOLETO"; value: number; dueDate: string; invoiceUrl: string };
+
 /**
- * Leva o lojista ao pagamento: garante o cliente e a assinatura no Asaas e
- * devolve o link da fatura (página do Asaas onde ele escolhe Pix, boleto ou
- * cartão — os dados de cartão nunca passam pelo nosso servidor).
+ * Prepara o pagamento da assinatura na forma escolhida: garante o cliente e a
+ * assinatura no Asaas e devolve o que a tela precisa. Pix → QR Code e
+ * "copia e cola" para pagar sem sair da Donna. Cartão → link da página segura
+ * do Asaas (os dados do cartão nunca passam pelo nosso servidor). Boleto → link
+ * do boleto.
  */
 export async function startCheckout(
   storeId: string,
-  input: { plan: BillingPlan; cpfCnpj: string; email: string }
-): Promise<{ invoiceUrl: string }> {
+  input: { plan: BillingPlan; cpfCnpj: string; email: string; method: PaymentMethod }
+): Promise<CheckoutResult> {
   const store = await db.store.findUniqueOrThrow({ where: { id: storeId } });
   if (store.status === "SUSPENDED") {
     throw new AsaasError(`O acesso desta loja foi suspenso. Fale com o suporte da ${BRAND_NAME}.`);
@@ -51,7 +60,7 @@ export async function startCheckout(
 
   let customerId = store.asaasCustomerId;
   if (customerId) {
-    await asaas(`/customers/${customerId}`, { method: "POST", body: { cpfCnpj: input.cpfCnpj } });
+    await asaas(`/customers/${customerId}`, { method: "PUT", body: { cpfCnpj: input.cpfCnpj } });
   } else {
     const customer = await asaas<{ id: string }>("/customers", {
       method: "POST",
@@ -61,39 +70,62 @@ export async function startCheckout(
     await db.store.update({ where: { id: storeId }, data: { asaasCustomerId: customerId } });
   }
 
-  // Já tem assinatura do mesmo plano com fatura em aberto: reaproveita (não gera cobrança duplicada).
-  if (store.asaasSubscriptionId) {
-    if (store.intendedPlan === input.plan) {
-      const open = await findOpenPayment(store.asaasSubscriptionId);
-      if (open) return { invoiceUrl: open.invoiceUrl };
-    } else {
-      // Trocou de plano antes de pagar: cancela a assinatura antiga (o Asaas remove as faturas pendentes dela).
-      await asaas(`/subscriptions/${store.asaasSubscriptionId}`, { method: "DELETE" });
-      await db.store.update({ where: { id: storeId }, data: { asaasSubscriptionId: null } });
-    }
+  let subscriptionId = store.asaasSubscriptionId;
+  if (subscriptionId && store.intendedPlan !== input.plan) {
+    // Trocou de plano antes de pagar: cancela a assinatura antiga (o Asaas remove as faturas pendentes dela).
+    await asaas(`/subscriptions/${subscriptionId}`, { method: "DELETE" });
+    await db.store.update({ where: { id: storeId }, data: { asaasSubscriptionId: null } });
+    subscriptionId = null;
   }
 
-  const subscription = await asaas<{ id: string }>("/subscriptions", {
-    method: "POST",
-    body: {
-      customer: customerId,
-      // UNDEFINED = o lojista escolhe na fatura: Pix, boleto ou cartão.
-      billingType: "UNDEFINED",
-      value: planValue(input.plan),
-      nextDueDate: todayKey(),
-      cycle: input.plan === "yearly" ? "YEARLY" : "MONTHLY",
-      description: `${BRAND_NAME} — plano ${input.plan === "yearly" ? "anual" : "mensal"}`,
-      externalReference: store.id,
-    },
-  });
-  await db.store.update({
-    where: { id: storeId },
-    data: { asaasSubscriptionId: subscription.id, intendedPlan: input.plan },
-  });
+  if (subscriptionId) {
+    // Mesmo plano: só troca a forma de pagamento, inclusive da fatura que já está em aberto.
+    await asaas(`/subscriptions/${subscriptionId}`, {
+      method: "PUT",
+      body: { billingType: input.method, updatePendingPayments: true },
+    });
+  } else {
+    const subscription = await asaas<{ id: string }>("/subscriptions", {
+      method: "POST",
+      body: {
+        customer: customerId,
+        billingType: input.method,
+        value: planValue(input.plan),
+        nextDueDate: todayKey(),
+        cycle: input.plan === "yearly" ? "YEARLY" : "MONTHLY",
+        description: `${BRAND_NAME} — plano ${input.plan === "yearly" ? "anual" : "mensal"}`,
+        externalReference: store.id,
+      },
+    });
+    subscriptionId = subscription.id;
+    await db.store.update({ where: { id: storeId }, data: { asaasSubscriptionId: subscriptionId, intendedPlan: input.plan } });
+  }
 
-  const open = await findOpenPayment(subscription.id);
+  const open = await findOpenPayment(subscriptionId);
   if (!open) throw new AsaasError("O Asaas não gerou a fatura da assinatura. Tente de novo em instantes.");
-  return { invoiceUrl: open.invoiceUrl };
+  const base = { value: open.value, dueDate: open.dueDate, invoiceUrl: open.invoiceUrl };
+
+  if (input.method === "PIX") {
+    const pix = await asaas<{ encodedImage: string; payload: string; expirationDate?: string }>(`/payments/${open.id}/pixQrCode`);
+    return {
+      method: "PIX",
+      ...base,
+      qrCodeImage: pix.encodedImage,
+      copyPaste: pix.payload,
+      expiresAt: pix.expirationDate ?? null,
+    };
+  }
+  return { method: input.method, ...base };
+}
+
+/** Situação da assinatura para a tela de pagamento acompanhar (Pix confirma em segundos). */
+export async function getBillingStatus(storeId: string) {
+  const store = await db.store.findUniqueOrThrow({
+    where: { id: storeId },
+    select: { status: true, subscriptionExpiresAt: true },
+  });
+  const active = store.status === "ACTIVE" && (!store.subscriptionExpiresAt || store.subscriptionExpiresAt > new Date());
+  return { active };
 }
 
 function addPeriod(dateKey: string, plan: BillingPlan) {

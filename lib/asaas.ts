@@ -18,7 +18,7 @@ export function isAsaasConfigured() {
 
 export async function asaas<T = Record<string, unknown>>(
   path: string,
-  init?: { method?: "GET" | "POST" | "DELETE"; body?: Record<string, unknown> }
+  init?: { method?: "GET" | "POST" | "PUT" | "DELETE"; body?: Record<string, unknown> }
 ): Promise<T> {
   const apiKey = process.env.ASAAS_API_KEY;
   if (!apiKey) throw new AsaasError("Cobrança ainda não configurada");

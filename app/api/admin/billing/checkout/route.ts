@@ -6,6 +6,7 @@ import { startCheckout } from "@/services/billing";
 
 const bodySchema = z.object({
   plan: z.enum(["monthly", "yearly"]),
+  method: z.enum(["PIX", "CREDIT_CARD", "BOLETO"]),
   cpfCnpj: z
     .string()
     .transform((value) => value.replace(/\D/g, ""))
@@ -32,8 +33,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Dados inválidos" }, { status: 400 });
     }
 
-    const { invoiceUrl } = await startCheckout(session.user.storeId, { ...parsed.data, email: session.user.email });
-    return NextResponse.json({ data: { invoiceUrl } });
+    const result = await startCheckout(session.user.storeId, { ...parsed.data, email: session.user.email });
+    return NextResponse.json({ data: result });
   } catch (error) {
     console.error("[POST /api/admin/billing/checkout]", error);
     const message = error instanceof AsaasError ? error.message : "Erro ao gerar a cobrança";
