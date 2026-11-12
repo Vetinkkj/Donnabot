@@ -15,26 +15,36 @@ function getContext() {
   return context;
 }
 
-/** "Plim" de aviso: duas notas rápidas e suaves, subindo, com um leve deslize no tom. */
+/**
+ * "Plim" de aviso, grave e abafado: duas notas suaves (onda senoidal, que não
+ * tem os harmônicos agudos da triangular) passando por um filtro passa-baixa,
+ * com volume baixo e ataque macio para não assustar.
+ */
 export function playAlertSound() {
   const ctx = getContext();
   if (!ctx) return;
   const start = ctx.currentTime + 0.01;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 900;
+  filter.Q.value = 0.7;
+  filter.connect(ctx.destination);
+
   [
-    { from: 740, to: 784, at: 0 },
-    { from: 1046, to: 1175, at: 0.11 },
-  ].forEach(({ from, to, at }) => {
+    { freq: 392, at: 0 }, // sol
+    { freq: 523, at: 0.13 }, // dó, uma quarta acima
+  ].forEach(({ freq, at }) => {
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     const t = start + at;
-    oscillator.type = "triangle";
-    oscillator.frequency.setValueAtTime(from, t);
-    oscillator.frequency.exponentialRampToValueAtTime(to, t + 0.06);
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(freq, t);
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.25, t + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
-    oscillator.connect(gain).connect(ctx.destination);
+    gain.gain.exponentialRampToValueAtTime(0.16, t + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+    oscillator.connect(gain).connect(filter);
     oscillator.start(t);
-    oscillator.stop(t + 0.26);
+    oscillator.stop(t + 0.34);
   });
 }
