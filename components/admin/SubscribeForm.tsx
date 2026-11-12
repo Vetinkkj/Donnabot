@@ -17,6 +17,7 @@ import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
 import { fieldClass } from "@/components/ui/Input";
 import { PRICING } from "@/lib/marketing-config";
+import { playAlertSound } from "@/lib/sound";
 
 type Plan = "monthly" | "yearly" | "founder";
 type Method = "PIX" | "CREDIT_CARD" | "BOLETO";
@@ -225,6 +226,12 @@ export function SubscribeForm({
   const [error, setError] = useState<string | undefined>();
   const [result, setResult] = useState<CheckoutResult | null>(null);
 
+  // Erro no pagamento: mostra a mensagem e toca o aviso sonoro, para não passar despercebido.
+  function fail(message: string) {
+    setError(message);
+    playAlertSound();
+  }
+
   const selected = PLANS[plan];
   const digits = document.replace(/\D/g, "");
   const validDocument = digits.length === 11 || digits.length === 14;
@@ -232,7 +239,7 @@ export function SubscribeForm({
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!validDocument) {
-      setError("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos).");
+      fail("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos).");
       return;
     }
     setError(undefined);
@@ -254,7 +261,7 @@ export function SubscribeForm({
       setResult(data);
       setLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro de conexão. Tente de novo.");
+      fail(err instanceof Error ? err.message : "Erro de conexão. Tente de novo.");
       setLoading(false);
     }
   }
