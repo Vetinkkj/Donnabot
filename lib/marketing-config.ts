@@ -26,6 +26,9 @@ export const PRICING = {
   yearly: 3490,
   // Plano Fundador: oferta de lançamento para as primeiras lojas, com o preço
   // travado por um tempo (depois disso o valor da assinatura é ajustado no Asaas).
+  // founderEnabled: false tira a oferta do site, do cadastro e do checkout
+  // (quem já é fundador continua renovando normalmente).
+  founderEnabled: false,
   founder: 197,
   founderSlots: 3,
   founderLockMonths: 12,

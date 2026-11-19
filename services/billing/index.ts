@@ -38,6 +38,7 @@ const PLAN_NAME: Record<BillingPlan, string> = { monthly: "mensal", yearly: "anu
  * pagaram (liberadas, com assinatura no Asaas) — quem só se cadastrou não ocupa vaga.
  */
 export async function getFounderSpotsLeft() {
+  if (!PRICING.founderEnabled) return 0;
   const taken = await db.store.count({
     where: { intendedPlan: "founder", status: "ACTIVE", asaasSubscriptionId: { not: null } },
   });
