@@ -18,20 +18,8 @@ export const CONTACT_EMAIL = "contatodonnabot@gmail.com";
 // botão de WhatsApp na página de Dúvidas fica escondido.
 export const CONTACT_WHATSAPP = "";
 
+// Preços, limites e recursos de cada plano ficam em lib/plans.ts.
 export const PRICING = {
-  monthly: 349,
-  // Preço "de" exibido riscado no card do mensal (decisão comercial do dono).
-  monthlyListPrice: 450,
-  // Anual = 10 mensalidades (2 meses de graça, ~17% de desconto).
-  yearly: 3490,
-  // Plano Fundador: oferta de lançamento para as primeiras lojas, com o preço
-  // travado por um tempo (depois disso o valor da assinatura é ajustado no Asaas).
-  // founderEnabled: false tira a oferta do site, do cadastro e do checkout
-  // (quem já é fundador continua renovando normalmente).
-  founderEnabled: false,
-  founder: 197,
-  founderSlots: 3,
-  founderLockMonths: 12,
   // Garantia: a loja paga e pode pedir reembolso integral até X dias depois.
   refundDays: 7,
 };

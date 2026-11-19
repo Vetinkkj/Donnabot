@@ -1,12 +1,11 @@
 import { db } from "@/lib/db";
 import { asaas, AsaasError } from "@/lib/asaas";
-import { BRAND_NAME, PRICING } from "@/lib/marketing-config";
+import { BRAND_NAME } from "@/lib/marketing-config";
+import { parsePlanId, planLabel, planPrice, storePlan, type PlanId } from "@/lib/plans";
 
 // ---------------------------------------------------------------------------
 // COBRANÇA DA ASSINATURA DA DONNA (lojas pagando a plataforma) via Asaas
 // ---------------------------------------------------------------------------
-
-export type BillingPlan = "monthly" | "yearly" | "founder";
 
 /** Dias de tolerância depois do vencimento antes de bloquear a loja (boleto compensa em até 1-2 dias úteis). */
 const GRACE_DAYS = 3;
@@ -24,25 +23,6 @@ type AsaasPayment = {
 function todayKey() {
   // Data no fuso de Brasília — é a que o Asaas usa no vencimento.
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-}
-
-function planValue(plan: BillingPlan) {
-  if (plan === "founder") return PRICING.founder;
-  return plan === "yearly" ? PRICING.yearly : PRICING.monthly;
-}
-
-const PLAN_NAME: Record<BillingPlan, string> = { monthly: "mensal", yearly: "anual", founder: "Fundador" };
-
-/**
- * Vagas do Plano Fundador que ainda restam. Conta as lojas fundadoras que já
- * pagaram (liberadas, com assinatura no Asaas) — quem só se cadastrou não ocupa vaga.
- */
-export async function getFounderSpotsLeft() {
-  if (!PRICING.founderEnabled) return 0;
-  const taken = await db.store.count({
-    where: { intendedPlan: "founder", status: "ACTIVE", asaasSubscriptionId: { not: null } },
-  });
-  return Math.max(PRICING.founderSlots - taken, 0);
 }
 
 /** Cobrança em aberto (pendente ou vencida) da assinatura, se houver. */
@@ -66,17 +46,11 @@ export type CheckoutResult =
  */
 export async function startCheckout(
   storeId: string,
-  input: { plan: BillingPlan; cpfCnpj: string; email: string; method: PaymentMethod }
+  input: { plan: PlanId; cpfCnpj: string; email: string; method: PaymentMethod }
 ): Promise<CheckoutResult> {
   const store = await db.store.findUniqueOrThrow({ where: { id: storeId } });
   if (store.status === "SUSPENDED") {
     throw new AsaasError(`O acesso desta loja foi suspenso. Fale com o suporte da ${BRAND_NAME}.`);
-  }
-
-  // Plano Fundador tem vagas limitadas; quem já é fundador (renovação) não disputa vaga.
-  const alreadyFounder = store.intendedPlan === "founder" && store.asaasSubscriptionId !== null;
-  if (input.plan === "founder" && !alreadyFounder && (await getFounderSpotsLeft()) === 0) {
-    throw new AsaasError("As vagas do Plano Fundador acabaram. Escolha o plano mensal ou o anual.");
   }
 
   let customerId = store.asaasCustomerId;
@@ -111,10 +85,10 @@ export async function startCheckout(
       body: {
         customer: customerId,
         billingType: input.method,
-        value: planValue(input.plan),
+        value: planPrice(input.plan),
         nextDueDate: todayKey(),
-        cycle: input.plan === "yearly" ? "YEARLY" : "MONTHLY",
-        description: `${BRAND_NAME} — plano ${PLAN_NAME[input.plan]}`,
+        cycle: parsePlanId(input.plan).cycle === "yearly" ? "YEARLY" : "MONTHLY",
+        description: `${BRAND_NAME} — plano ${planLabel(input.plan)}`,
         externalReference: store.id,
       },
     });
@@ -149,9 +123,9 @@ export async function getBillingStatus(storeId: string) {
   return { active };
 }
 
-function addPeriod(dateKey: string, plan: BillingPlan) {
+function addPeriod(dateKey: string, cycle: "monthly" | "yearly") {
   const date = new Date(`${dateKey}T12:00:00Z`);
-  if (plan === "yearly") date.setUTCFullYear(date.getUTCFullYear() + 1);
+  if (cycle === "yearly") date.setUTCFullYear(date.getUTCFullYear() + 1);
   else date.setUTCMonth(date.getUTCMonth() + 1);
   date.setUTCDate(date.getUTCDate() + GRACE_DAYS);
   return date;
@@ -174,8 +148,7 @@ export async function handleAsaasPaymentEvent(event: string, payment: AsaasPayme
   if (!store) return { handled: false as const, reason: "store_not_found" };
 
   if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
-    const plan: BillingPlan = store.intendedPlan === "yearly" ? "yearly" : "monthly";
-    const paidUntil = addPeriod(payment.dueDate, plan);
+    const paidUntil = addPeriod(payment.dueDate, storePlan(store.intendedPlan).cycle);
     const expiresAt =
       store.subscriptionExpiresAt && store.subscriptionExpiresAt > paidUntil ? store.subscriptionExpiresAt : paidUntil;
     await db.store.update({

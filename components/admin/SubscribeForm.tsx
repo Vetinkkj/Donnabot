@@ -17,9 +17,9 @@ import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
 import { fieldClass } from "@/components/ui/Input";
 import { PRICING } from "@/lib/marketing-config";
+import { PLAN_TIERS, TIERS, YEARLY_MONTHS_CHARGED, parsePlanId, planId, planPrice, yearlyPrice, type BillingCycle, type PlanId, type PlanTier } from "@/lib/plans";
 import { playAlertSound } from "@/lib/sound";
 
-type Plan = "monthly" | "yearly" | "founder";
 type Method = "PIX" | "CREDIT_CARD" | "BOLETO";
 
 type CheckoutResult =
@@ -29,43 +29,10 @@ type CheckoutResult =
 const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const brl0 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
-const PLANS: Record<Plan, { label: string; price: number; per: string; listPrice: number; badge: string; note: string }> = {
-  founder: {
-    label: "Fundador",
-    price: PRICING.founder,
-    per: "/mês",
-    listPrice: PRICING.monthly,
-    badge: `Vagas limitadas`,
-    note: `Preço garantido por ${PRICING.founderLockMonths} meses. Só para as ${PRICING.founderSlots} primeiras lojas.`,
-  },
-  monthly: {
-    label: "Mensal",
-    price: PRICING.monthly,
-    per: "/mês",
-    listPrice: PRICING.monthlyListPrice,
-    badge: `-${Math.round((1 - PRICING.monthly / PRICING.monthlyListPrice) * 100)}%`,
-    note: "Renova todo mês. Cancele quando quiser.",
-  },
-  yearly: {
-    label: "Anual",
-    price: PRICING.yearly,
-    per: "/ano",
-    listPrice: PRICING.monthly * 12,
-    badge: "2 meses grátis",
-    note: `Sai por ${brl0.format(Math.round(PRICING.yearly / 12))}/mês. Economize ${brl0.format(PRICING.monthly * 12 - PRICING.yearly)}.`,
-  },
-};
-
 const METHODS: { id: Method; label: string; hint: string; icon: typeof QrCode }[] = [
   { id: "PIX", label: "Pix", hint: "Libera na hora", icon: QrCode },
   { id: "CREDIT_CARD", label: "Cartão de crédito", hint: "Libera na hora", icon: CreditCard },
   { id: "BOLETO", label: "Boleto", hint: "Libera em até 2 dias úteis", icon: Barcode },
-];
-
-const INCLUDED = [
-  "Donna atendendo no WhatsApp 24 horas",
-  "Painel com pedidos, estoque e vendas",
-  "Configuração assistida pela equipe",
 ];
 
 /** 000.000.000-00 ou 00.000.000/0000-00, conforme a quantidade de dígitos. */
@@ -211,15 +178,13 @@ function BoletoPayment({ result, onBack }: { result: CheckoutResult; onBack: () 
 export function SubscribeForm({
   defaultPlan,
   storeName,
-  founderAvailable,
 }: {
-  defaultPlan: Plan;
+  defaultPlan: PlanId;
   storeName: string;
-  /** Há vaga de fundador (ou a loja já é fundadora). Sem vaga, a opção não aparece. */
-  founderAvailable: boolean;
 }) {
-  const [plan, setPlan] = useState<Plan>(defaultPlan === "founder" && !founderAvailable ? "monthly" : defaultPlan);
-  const planIds = (Object.keys(PLANS) as Plan[]).filter((id) => id !== "founder" || founderAvailable);
+  const [tier, setTier] = useState<PlanTier>(parsePlanId(defaultPlan).tier);
+  const [cycle, setCycle] = useState<BillingCycle>(parsePlanId(defaultPlan).cycle);
+  const plan = planId(tier, cycle);
   const [method, setMethod] = useState<Method>("PIX");
   const [document, setDocument] = useState("");
   const [loading, setLoading] = useState(false);
@@ -232,7 +197,8 @@ export function SubscribeForm({
     playAlertSound();
   }
 
-  const selected = PLANS[plan];
+  const price = planPrice(plan);
+  const listPrice = cycle === "yearly" ? TIERS[tier].monthly * 12 : null;
   const digits = document.replace(/\D/g, "");
   const validDocument = digits.length === 11 || digits.length === 14;
 
@@ -255,7 +221,7 @@ export function SubscribeForm({
       const data = json.data as CheckoutResult;
       // Cartão: os dados são digitados na página segura do Asaas, nunca aqui.
       if (data.method === "CREDIT_CARD") {
-        window.location.href = data.invoiceUrl;
+        window.location.assign(data.invoiceUrl);
         return;
       }
       setResult(data);
@@ -276,32 +242,54 @@ export function SubscribeForm({
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-7" noValidate>
             <Step n={1} title="Escolha o plano">
-              <div role="radiogroup" aria-label="Plano" className={cn("grid gap-3", planIds.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
-                {planIds.map((id) => {
-                  const p = PLANS[id];
-                  const active = plan === id;
+              <div role="radiogroup" aria-label="Forma de cobrança" className="inline-flex w-fit rounded-lg border border-white/10 p-1">
+                {([["monthly", "Mensal"], ["yearly", `Anual · ${12 - YEARLY_MONTHS_CHARGED} meses grátis`]] as const).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={cycle === id}
+                    onClick={() => setCycle(id)}
+                    className={cn(
+                      "rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-emerald-500",
+                      cycle === id ? "bg-white/10 text-zinc-50" : "text-zinc-400 hover:text-zinc-100"
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div role="radiogroup" aria-label="Plano" className="grid gap-3 sm:grid-cols-3">
+                {PLAN_TIERS.map((id) => {
+                  const t = TIERS[id];
+                  const active = tier === id;
+                  const value = cycle === "yearly" ? yearlyPrice(id) : t.monthly;
                   return (
                     <button
                       key={id}
                       type="button"
                       role="radio"
                       aria-checked={active}
-                      onClick={() => setPlan(id)}
+                      onClick={() => setTier(id)}
                       className={cn(
                         "relative flex flex-col items-start rounded-xl border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-emerald-500",
                         active ? "border-emerald-500/60 bg-emerald-500/[0.06]" : "border-white/10 hover:border-white/20"
                       )}
                     >
                       <span className="flex w-full items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-zinc-200">{p.label}</span>
-                        <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-300">{p.badge}</span>
+                        <span className="text-sm font-medium text-zinc-200">{t.name}</span>
+                        {t.highlight && (
+                          <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-300">{t.highlight}</span>
+                        )}
                       </span>
-                      <span className="mt-2 text-xs text-zinc-500 line-through">{brl0.format(p.listPrice)}</span>
-                      <span className="text-2xl font-semibold tabular-nums text-zinc-50">
-                        {brl0.format(p.price)}
-                        <span className="text-sm font-normal text-zinc-500">{p.per}</span>
+                      <span className="mt-2 text-2xl font-semibold tabular-nums text-zinc-50">
+                        {cycle === "yearly" ? brl0.format(value) : brl.format(value)}
+                        <span className="text-sm font-normal text-zinc-500">{cycle === "yearly" ? "/ano" : "/mês"}</span>
                       </span>
-                      <span className="mt-1 text-xs text-zinc-400">{p.note}</span>
+                      <span className="mt-1 text-xs text-zinc-400">
+                        Até {t.conversations.toLocaleString("pt-BR")} conversas por mês
+                        {cycle === "yearly" && <> · sai por {brl.format(value / 12)}/mês</>}
+                      </span>
                     </button>
                   );
                 })}
@@ -357,7 +345,7 @@ export function SubscribeForm({
             {error && <p role="alert" className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p>}
 
             <Button type="submit" loading={loading} className="h-12 text-[15px]">
-              {method === "PIX" ? "Gerar Pix" : method === "CREDIT_CARD" ? "Pagar com cartão" : "Gerar boleto"} · {brl.format(selected.price)}
+              {method === "PIX" ? "Gerar Pix" : method === "CREDIT_CARD" ? "Pagar com cartão" : "Gerar boleto"} · {brl.format(price)}
             </Button>
           </form>
         )}
@@ -366,8 +354,8 @@ export function SubscribeForm({
       <aside className="flex flex-col gap-4 rounded-2xl border border-white/[0.07] bg-zinc-900/30 p-5 lg:sticky lg:top-8 lg:self-start">
         <p className="text-xs font-medium uppercase tracking-[0.08em] text-zinc-500">Resumo</p>
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-sm text-zinc-300">Donnabot · {selected.label}</span>
-          <span className="text-sm text-zinc-500 line-through">{brl0.format(selected.listPrice)}</span>
+          <span className="text-sm text-zinc-300">Donna {TIERS[tier].name} · {cycle === "yearly" ? "anual" : "mensal"}</span>
+          {listPrice !== null && <span className="text-sm text-zinc-500 line-through">{brl0.format(listPrice)}</span>}
         </div>
         <div className="flex items-baseline justify-between gap-3 border-b border-white/[0.06] pb-4">
           <span className="text-sm text-zinc-500">Loja</span>
@@ -375,10 +363,10 @@ export function SubscribeForm({
         </div>
         <div className="flex items-baseline justify-between gap-3">
           <span className="font-medium text-zinc-100">Total hoje</span>
-          <span className="text-xl font-semibold tabular-nums text-zinc-50">{brl.format(selected.price)}</span>
+          <span className="text-xl font-semibold tabular-nums text-zinc-50">{brl.format(price)}</span>
         </div>
         <ul className="flex flex-col gap-2 border-t border-white/[0.06] pt-4">
-          {INCLUDED.map((item) => (
+          {TIERS[tier].bullets.slice(0, 4).map((item) => (
             <li key={item} className="flex gap-2 text-[13px] text-zinc-400">
               <Check className="mt-0.5 size-4 shrink-0 text-emerald-400" aria-hidden />
               {item}

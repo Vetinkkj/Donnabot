@@ -5,6 +5,9 @@ import { MessageCircle, Receipt } from "lucide-react";
 import { getCurrentStoreId } from "@/lib/current-store";
 import { cn } from "@/lib/cn";
 import { getCustomerProfile } from "@/services/customers";
+import { getPlanUsage } from "@/services/plan-usage";
+import { tierHas } from "@/lib/plans";
+import { UpgradeNotice } from "@/components/admin/PlanNotices";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar, PageHeader, tableStyles } from "@/components/admin/page-ui";
 import { EmptyState, Panel, currency } from "@/components/admin/ui";
@@ -30,8 +33,20 @@ function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: 
 export default async function CustomerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const storeId = await getCurrentStoreId();
-  const customer = await getCustomerProfile(storeId, id);
+  const [customer, plan] = await Promise.all([getCustomerProfile(storeId, id), getPlanUsage(storeId)]);
   if (!customer) notFound();
+
+  if (!tierHas(plan.tier, "customerHistory")) {
+    return (
+      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
+        <PageHeader title={displayName(customer)} back={{ href: "/customers", label: "Clientes" }} />
+        <UpgradeNotice
+          title="Histórico completo do cliente"
+          description="Todas as conversas, pedidos, total gasto e frequência de compra de cada cliente fazem parte do plano Professional."
+        />
+      </div>
+    );
+  }
 
   const { stats, conversation } = customer;
   const recurring = stats.paidOrdersCount >= 2;

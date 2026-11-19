@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
-import { PRICING } from "@/lib/marketing-config";
+import { describeIntendedPlan } from "@/lib/plans";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
@@ -17,11 +17,6 @@ export type PlatformStoreRow = {
   intendedPlan: string | null;
 };
 
-const PLAN_LABEL: Record<string, string> = {
-  monthly: `Mensal (R$ ${PRICING.monthly}/mês)`,
-  yearly: `Anual (R$ ${PRICING.yearly.toLocaleString("pt-BR")}/ano)`,
-  founder: `Fundador (R$ ${PRICING.founder}/mês)`,
-};
 
 const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger"> = {
   PENDING: "warning",
@@ -83,7 +78,7 @@ function StoreRow({ store, onUpdated }: { store: PlatformStoreRow; onUpdated: (s
         <div className="font-medium text-zinc-900 dark:text-zinc-50">{store.name}</div>
         <div className="text-xs text-zinc-500">{store.ownerEmail ?? "sem dono cadastrado"}</div>
         {store.intendedPlan && (
-          <div className="text-xs text-zinc-400">Plano escolhido: {PLAN_LABEL[store.intendedPlan] ?? store.intendedPlan}</div>
+          <div className="text-xs text-zinc-400">Plano escolhido: {describeIntendedPlan(store.intendedPlan)}</div>
         )}
       </td>
       <td className="px-3 py-3 align-top">

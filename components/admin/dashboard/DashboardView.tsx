@@ -13,6 +13,7 @@ import {
 import { cn } from "@/lib/cn";
 import { DASHBOARD_PRESETS, type DashboardOverview } from "@/services/dashboard";
 import { DateRangeFilter } from "./DateRangeFilter";
+import { UpgradeNotice } from "@/components/admin/PlanNotices";
 import { RevenueChart } from "./RevenueChart";
 import { FunnelChart, TopProductsList } from "./BarCharts";
 import {
@@ -450,7 +451,19 @@ function LowStockPanel({ data }: { data: DashboardOverview }) {
 // ---------------------------------------------------------------------------
 
 /** Dashboard completo a partir dos dados já calculados (a página busca; este componente só desenha). */
-export function DashboardView({ data, today }: { data: DashboardOverview; today: string }) {
+export function DashboardView({
+  data,
+  today,
+  analytics = true,
+  usage,
+}: {
+  data: DashboardOverview;
+  today: string;
+  /** Plano com relatórios de vendas (Professional ou acima). Sem eles, mostra só o essencial do dia a dia. */
+  analytics?: boolean;
+  /** Medidor de conversas do mês, no topo. */
+  usage?: ReactNode;
+}) {
   const { range } = data;
   const presetLabel = DASHBOARD_PRESETS.find((p) => p.id === range.preset)?.label;
 
@@ -460,24 +473,46 @@ export function DashboardView({ data, today }: { data: DashboardOverview; today:
         <div className="dash-enter">
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">Visão geral</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            {presetLabel ?? "Período personalizado"} · comparado com {comparisonText(range.days)}
+            {analytics
+              ? `${presetLabel ?? "Período personalizado"} · comparado com ${comparisonText(range.days)}`
+              : "O que precisa da sua atenção e os últimos pedidos"}
           </p>
         </div>
-        <DateRangeFilter presets={DASHBOARD_PRESETS} active={range.preset} from={range.from} to={range.to} today={today} />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          {usage}
+          {analytics && (
+            <DateRangeFilter presets={DASHBOARD_PRESETS} active={range.preset} from={range.from} to={range.to} today={today} />
+          )}
+        </div>
       </header>
 
       {/* key: refaz as animações de entrada ao trocar de período */}
       <div key={`${range.from}:${range.to}`} className="flex flex-col gap-5">
         <AttentionStrip now={data.now} />
-        <SalesPanel data={data} />
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-          <ConversionPanel data={data} />
-          <TopProductsPanel data={data} />
-        </div>
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-          <RecentOrdersPanel orders={data.recentOrders} />
-          <LowStockPanel data={data} />
-        </div>
+        {analytics ? (
+          <>
+            <SalesPanel data={data} />
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+              <ConversionPanel data={data} />
+              <TopProductsPanel data={data} />
+            </div>
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+              <RecentOrdersPanel orders={data.recentOrders} />
+              <LowStockPanel data={data} />
+            </div>
+          </>
+        ) : (
+          <>
+            <UpgradeNotice
+              title="Relatórios de vendas"
+              description="Faturamento, ticket médio, funil de conversão, mais vendidos e alerta de estoque mínimo fazem parte do plano Professional."
+            />
+            {/* Fora do grid: o painel ocupa a largura toda (o col-span dele não se aplica). */}
+            <div className="flex flex-col">
+              <RecentOrdersPanel orders={data.recentOrders} />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

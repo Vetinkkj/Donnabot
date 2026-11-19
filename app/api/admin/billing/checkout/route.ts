@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { AsaasError } from "@/lib/asaas";
+import { isPlanId, type PlanId } from "@/lib/plans";
 import { startCheckout } from "@/services/billing";
 
 const bodySchema = z.object({
-  plan: z.enum(["monthly", "yearly", "founder"]),
+  plan: z.string().refine(isPlanId, "Plano inválido").transform((value) => value as PlanId),
   method: z.enum(["PIX", "CREDIT_CARD", "BOLETO"]),
   cpfCnpj: z
     .string()

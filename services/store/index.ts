@@ -1,3 +1,4 @@
+import type { PlanId } from "@/lib/plans";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
@@ -13,7 +14,7 @@ export type CreateStoreWithOwnerInput = {
   ownerName: string;
   email: string;
   password: string;
-  plan?: "monthly" | "yearly" | "founder";
+  plan?: PlanId;
 };
 
 /** Cria uma loja nova e o usuário dono dela (role OWNER) em uma única transação. */

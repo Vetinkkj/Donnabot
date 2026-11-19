@@ -18,9 +18,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { CONTACT_EMAIL, PRICING } from "@/lib/marketing-config";
+import { TIERS } from "@/lib/plans";
 import { CTA, Logo, SectionHead, TiltCard } from "./primitives";
 
-const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 const benefits = [
   { icon: MessageCircle, t: "Atendimento no WhatsApp", d: "A Donna responde seus clientes no canal onde eles já conversam com a sua loja." },
@@ -134,8 +134,6 @@ export function Trust() {
   );
 }
 
-const yearlySavings = PRICING.monthly * 12 - PRICING.yearly;
-
 const faq: [string, string][] = [
   [
     "Como funciona a Donnabot?",
@@ -152,7 +150,7 @@ const faq: [string, string][] = [
   ],
   [
     "Qual é a diferença entre os planos?",
-    `A forma de pagamento: o mensal custa ${currency.format(PRICING.monthly)} por mês e o anual ${currency.format(PRICING.yearly)} por ano, uma economia de ${currency.format(yearlySavings)} em relação a 12 mensalidades.`,
+    `Todos os planos têm a Donna completa atendendo no WhatsApp. O que muda é quantas conversas ela atende por mês (${TIERS.essential.conversations}, ${TIERS.professional.conversations.toLocaleString("pt-BR")} ou ${TIERS.business.conversations.toLocaleString("pt-BR")}), os relatórios de vendas e o nível de suporte. No anual você paga 10 mensalidades e leva 12.`,
   ],
   ["Como faço para começar?", "Crie sua conta, escolha o plano e fale com a gente para preparar sua loja. Leva poucos minutos."],
 ];
