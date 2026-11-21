@@ -244,6 +244,7 @@ const footerLinks: [string, string][] = [
 
 const legalLinks: [string, string][] = [
   ["Termos de Uso", "/termos"],
+  ["Contrato de Assinatura", "/contrato"],
   ["Privacidade", "/privacidade"],
   ["Exclusão de dados", "/exclusao-de-dados"],
 ];

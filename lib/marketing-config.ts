@@ -11,6 +11,13 @@ export const LEGAL_CNPJ = "";
 // Data exibida no topo de Termos, Privacidade e Exclusão de dados.
 export const LEGAL_UPDATED_AT = "21 de outubro de 2026";
 
+// Contrato de Assinatura (/contrato). Ao mudar o texto, troque a versão: o
+// aceite de cada loja fica registrado com a versão que ela aceitou.
+export const CONTRACT_VERSION = "2026-11-21";
+export const CONTRACT_UPDATED_AT = "21 de novembro de 2026";
+// Cidade do foro do contrato.
+export const LEGAL_CITY = "São Pedro da Aldeia/RJ";
+
 export const CONTACT_EMAIL = "contatodonnabot@gmail.com";
 
 // TODO: preencher assim que tivermos o número real (formato:

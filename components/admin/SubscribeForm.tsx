@@ -187,6 +187,7 @@ export function SubscribeForm({
   const plan = planId(tier, cycle);
   const [method, setMethod] = useState<Method>("PIX");
   const [document, setDocument] = useState("");
+  const [acceptContract, setAcceptContract] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [result, setResult] = useState<CheckoutResult | null>(null);
@@ -208,13 +209,17 @@ export function SubscribeForm({
       fail("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos).");
       return;
     }
+    if (!acceptContract) {
+      fail("Para assinar, leia e aceite o Contrato de Assinatura.");
+      return;
+    }
     setError(undefined);
     setLoading(true);
     try {
       const res = await fetch("/api/admin/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, cpfCnpj: digits, method }),
+        body: JSON.stringify({ plan, cpfCnpj: digits, method, acceptContract }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Não foi possível gerar a cobrança");
@@ -341,6 +346,22 @@ export function SubscribeForm({
                 <p className="text-xs text-zinc-500">Você vai para a página segura do Asaas para digitar os dados do cartão.</p>
               )}
             </Step>
+
+            <label className="flex items-start gap-2.5 text-[13px] leading-relaxed text-zinc-400">
+              <input
+                type="checkbox"
+                checked={acceptContract}
+                onChange={(e) => setAcceptContract(e.target.checked)}
+                className="mt-0.5 size-4 shrink-0 accent-emerald-500"
+              />
+              <span>
+                Li e aceito o{" "}
+                <a href="/contrato" target="_blank" rel="noopener noreferrer" className="text-zinc-200 underline underline-offset-2">
+                  Contrato de Assinatura
+                </a>
+                , incluindo a renovação automática, a garantia de {PRICING.refundDays} dias e as responsabilidades de cada parte.
+              </span>
+            </label>
 
             {error && <p role="alert" className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p>}
 

@@ -80,6 +80,7 @@ model Store {
   products      Product[]
   orders        Order[]
   conversations Conversation[]
+  contractAcceptances ContractAcceptance[]
 
   @@map("stores")
 }
@@ -111,6 +112,26 @@ model User {
 
   @@index([storeId])
   @@map("users")
+}
+
+// Prova do aceite do Contrato de Assinatura (/contrato) na hora do pagamento.
+// Nunca é editado: cada aceite (nova versão, troca de plano) vira uma linha.
+model ContractAcceptance {
+  id         String   @id @default(cuid())
+  storeId    String
+  userId     String?
+  userEmail  String
+  version    String
+  plan       String
+  cpfCnpj    String
+  ip         String?
+  userAgent  String?
+  acceptedAt DateTime @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@map("contract_acceptances")
 }
 
 // ---------------------------------------------------------------------------
