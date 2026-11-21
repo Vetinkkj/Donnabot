@@ -35,6 +35,9 @@ model Store {
   paymentMessage         String      @default("Pagamento via PIX")
   orderApprovedMessage   String      @default("✅ Pagamento confirmado! Obrigado pela compra.")
   defaultMinStock        Int         @default(2)
+  // A Donna diz ao cliente quantas unidades tem em estoque. Desligado, ela só
+  // diz se tem ou não (a quantidade fica só no painel).
+  showStockQuantity      Boolean     @default(true)
 
   // Controle de acesso/assinatura. Enquanto não for ACTIVE (ou depois de
   // subscriptionExpiresAt passar), o painel fica bloqueado pro dono e a

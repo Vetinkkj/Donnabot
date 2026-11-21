@@ -57,15 +57,28 @@ async function saveMessage(
   await db.message.create({ data: { conversationId, direction, content, messageType } });
 }
 
-function buildProductReply(product: SerializedProduct, requestedQuantity: number): string {
+/**
+ * Resposta sobre uma peça. Com `showStock` desligado (configuração da loja), a
+ * Donna nunca diz quantas unidades tem: só se tem ou não tem.
+ */
+function buildProductReply(product: SerializedProduct, requestedQuantity: number, showStock: boolean): string {
   const emoji = getCategoryEmoji(product.categoryName);
 
   if (product.stockQuantity <= 0) {
     return [
       "Infelizmente estamos sem estoque dessa peça no momento.",
       `${emoji} ${product.name}`,
-      "❌ Disponível: 0 unidades",
+      showStock ? "❌ Disponível: 0 unidades" : "❌ Sem estoque no momento",
       "Deseja falar com um atendente?",
+    ].join("\n");
+  }
+
+  if (product.stockQuantity < requestedQuantity && !showStock) {
+    return [
+      "No momento não temos essa quantidade disponível dessa peça.",
+      `${emoji} ${product.name}`,
+      `💰 ${currency.format(product.price)} cada`,
+      "Quer falar com um atendente para ver quantas conseguimos separar?",
     ].join("\n");
   }
 
@@ -87,7 +100,7 @@ function buildProductReply(product: SerializedProduct, requestedQuantity: number
     lines.push(`💰 ${currency.format(product.price)}`);
   }
 
-  lines.push(`📦 Estoque: ${product.stockQuantity} unidades`);
+  if (showStock) lines.push(`📦 Estoque: ${product.stockQuantity} unidades`);
   lines.push('Para levar, toque em "Adicionar" 👇');
 
   return lines.join("\n");
@@ -222,7 +235,7 @@ async function addLastProductToCart(storeId: string, context: ConversationContex
 }
 
 async function resolveReply(
-  store: { welcomeMessage: string },
+  store: { welcomeMessage: string; showStockQuantity: boolean },
   storeId: string,
   customerId: string,
   conversationContext: Prisma.JsonValue,
@@ -285,7 +298,11 @@ async function resolveReply(
     if (errors.length > 0 || !order) {
       const lines = ["Ops, o estoque de alguns itens mudou enquanto você decidia:"];
       for (const error of errors) {
-        lines.push(`${error.productName}: pedimos ${error.requestedQuantity}, mas agora só tem ${error.availableQuantity} disponível.`);
+        lines.push(
+          store.showStockQuantity
+            ? `${error.productName}: pedimos ${error.requestedQuantity}, mas agora só tem ${error.availableQuantity} disponível.`
+            : `${error.productName}: não temos mais a quantidade pedida.`
+        );
       }
       lines.push("Quer ajustar e tentar de novo?");
       return { reply: lines.join("\n"), context };
@@ -332,10 +349,13 @@ async function resolveReply(
     }
 
     const product = result.product;
-    const reply = buildProductReply(product, parsed.quantity);
+    const reply = buildProductReply(product, parsed.quantity, store.showStockQuantity);
     const offeredQuantity = Math.min(parsed.quantity, product.stockQuantity);
-    const lastProduct =
-      product.stockQuantity > 0 ? { id: product.id, name: product.name, quantity: offeredQuantity } : undefined;
+    // Estoque escondido e pedido maior que o estoque: não oferece "Adicionar" com
+    // menos unidades (o carrinho revelaria a quantidade) — passa para um atendente.
+    const canOffer =
+      product.stockQuantity > 0 && (store.showStockQuantity || product.stockQuantity >= parsed.quantity);
+    const lastProduct = canOffer ? { id: product.id, name: product.name, quantity: offeredQuantity } : undefined;
 
     const image =
       lastProduct && product.imageUrl

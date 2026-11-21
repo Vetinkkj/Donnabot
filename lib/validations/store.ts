@@ -10,6 +10,10 @@ export const storeSettingsSchema = z.object({
   paymentMessage: z.string().trim().min(1, "Mensagem de pagamento é obrigatória"),
   orderApprovedMessage: z.string().trim().min(1, "Mensagem de pedido aprovado é obrigatória"),
   defaultMinStock: z.coerce.number().int().min(0, "Estoque mínimo não pode ser negativo"),
+  // O formulário manda "true"/"false"; opcional para chamadas antigas não apagarem a escolha.
+  showStockQuantity: z
+    .union([z.boolean(), z.enum(["true", "false"]).transform((v) => v === "true")])
+    .optional(),
 });
 
 export type StoreSettingsInput = z.infer<typeof storeSettingsSchema>;

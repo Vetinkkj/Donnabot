@@ -125,6 +125,7 @@ export async function updateStoreSettings(storeId: string, input: StoreSettingsI
       paymentMessage: input.paymentMessage,
       orderApprovedMessage: input.orderApprovedMessage,
       defaultMinStock: input.defaultMinStock,
+      ...(input.showStockQuantity !== undefined ? { showStockQuantity: input.showStockQuantity } : {}),
     },
   });
 }

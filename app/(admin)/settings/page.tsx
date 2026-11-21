@@ -27,6 +27,7 @@ export default async function SettingsPage() {
         paymentMessage: store.paymentMessage,
         orderApprovedMessage: store.orderApprovedMessage,
         defaultMinStock: store.defaultMinStock,
+        showStockQuantity: store.showStockQuantity,
       }}
       whatsapp={{ initialStatus: integrationsStatus, embeddedSignup, isPlatformAdmin }}
       userEmail={session?.user?.email ?? null}

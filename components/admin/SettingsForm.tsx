@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import { Bot, Store } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
-import { StatusMessage } from "@/components/admin/page-ui";
+import { StatusMessage, Switch } from "@/components/admin/page-ui";
 
 export type StoreSettings = {
   name: string;
@@ -16,10 +16,11 @@ export type StoreSettings = {
   paymentMessage: string;
   orderApprovedMessage: string;
   defaultMinStock: number;
+  showStockQuantity: boolean;
 };
 
 type Values = Record<
-  "name" | "botName" | "phone" | "address" | "logoUrl" | "welcomeMessage" | "paymentMessage" | "orderApprovedMessage" | "defaultMinStock",
+  "name" | "botName" | "phone" | "address" | "logoUrl" | "welcomeMessage" | "paymentMessage" | "orderApprovedMessage" | "defaultMinStock" | "showStockQuantity",
   string
 >;
 
@@ -34,6 +35,7 @@ function toValues(data: StoreSettings): Values {
     paymentMessage: data.paymentMessage,
     orderApprovedMessage: data.orderApprovedMessage,
     defaultMinStock: String(data.defaultMinStock),
+    showStockQuantity: String(data.showStockQuantity),
   };
 }
 
@@ -131,6 +133,24 @@ export function StoreSettingsFields({
           className="sm:max-w-sm"
           required
         />
+      </SettingsSection>
+
+      <SettingsSection title="Respostas sobre produtos" description="O que a Donna conta para o cliente quando ele pergunta por uma peça.">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p id="show-stock-label" className="text-sm font-medium text-zinc-200">Mostrar a quantidade em estoque</p>
+            <p className="mt-0.5 text-[13px] text-zinc-500">
+              {values.showStockQuantity === "true"
+                ? "Ligado: a Donna diz quantas unidades tem (ex.: “Estoque: 12 unidades”)."
+                : "Desligado: a Donna só diz se tem ou não tem a peça. A quantidade continua aparecendo para você no painel."}
+            </p>
+          </div>
+          <Switch
+            checked={values.showStockQuantity === "true"}
+            onChange={(checked) => update("showStockQuantity", String(checked))}
+            label="Mostrar a quantidade em estoque para o cliente"
+          />
+        </div>
       </SettingsSection>
 
       <SettingsSection title="Mensagens automáticas" description="Textos que a Donna envia em momentos-chave do atendimento.">
