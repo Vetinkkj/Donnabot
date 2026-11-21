@@ -142,7 +142,7 @@ export function StoreSettingsFields({
             <p className="mt-0.5 text-[13px] text-zinc-500">
               {values.showStockQuantity === "true"
                 ? "Ligado: a Donna diz quantas unidades tem (ex.: “Estoque: 12 unidades”)."
-                : "Desligado: a Donna só diz se tem ou não tem a peça. A quantidade continua aparecendo para você no painel."}
+                : "Desligado: a Donna não fala nada sobre estoque, só o preço. Quando a peça acabar ou o pedido passar do que tem, ela chama um atendente. A quantidade continua aparecendo para você no painel."}
             </p>
           </div>
           <Switch

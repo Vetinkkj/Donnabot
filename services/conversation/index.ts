@@ -59,26 +59,30 @@ async function saveMessage(
 
 /**
  * Resposta sobre uma peça. Com `showStock` desligado (configuração da loja), a
- * Donna nunca diz quantas unidades tem: só se tem ou não tem.
+ * Donna não fala nada de estoque: nem quantidade, nem a palavra "estoque".
  */
 function buildProductReply(product: SerializedProduct, requestedQuantity: number, showStock: boolean): string {
   const emoji = getCategoryEmoji(product.categoryName);
+
+  if (!showStock) {
+    if (product.stockQuantity <= 0) {
+      return ["Essa peça não está disponível no momento.", `${emoji} ${product.name}`, "Quer falar com um atendente?"].join("\n");
+    }
+    if (product.stockQuantity < requestedQuantity) {
+      return [
+        `${emoji} ${product.name}`,
+        `💰 ${currency.format(product.price)} cada`,
+        "Para essa quantidade, um atendente confirma o pedido com você. Quer falar com um atendente?",
+      ].join("\n");
+    }
+  }
 
   if (product.stockQuantity <= 0) {
     return [
       "Infelizmente estamos sem estoque dessa peça no momento.",
       `${emoji} ${product.name}`,
-      showStock ? "❌ Disponível: 0 unidades" : "❌ Sem estoque no momento",
+      "❌ Disponível: 0 unidades",
       "Deseja falar com um atendente?",
-    ].join("\n");
-  }
-
-  if (product.stockQuantity < requestedQuantity && !showStock) {
-    return [
-      "No momento não temos essa quantidade disponível dessa peça.",
-      `${emoji} ${product.name}`,
-      `💰 ${currency.format(product.price)} cada`,
-      "Quer falar com um atendente para ver quantas conseguimos separar?",
     ].join("\n");
   }
 
@@ -107,11 +111,11 @@ function buildProductReply(product: SerializedProduct, requestedQuantity: number
 }
 
 /** Vários produtos servem pro que o cliente disse — lista e pergunta o modelo em vez de chutar. */
-function buildAmbiguousReply(options: SerializedProduct[]): string {
+function buildAmbiguousReply(options: SerializedProduct[], showStock: boolean): string {
   const lines = ["Temos algumas opções 🙂"];
   for (const option of options) {
     const emoji = getCategoryEmoji(option.categoryName);
-    const stock = option.stockQuantity > 0 ? currency.format(option.price) : "sem estoque";
+    const stock = option.stockQuantity > 0 ? currency.format(option.price) : showStock ? "sem estoque" : "indisponível";
     lines.push(`${emoji} ${option.name} — ${stock}`);
   }
   lines.push("Qual delas você quer? Se for para outro aparelho, me diga o modelo.");
@@ -168,8 +172,9 @@ function buildPendingOrderHandoffReply(orderId: string): string {
   return `Seu pedido #${shortOrderId(orderId)} já está separado! Vou te passar para um atendente, que vai te enviar o link de pagamento 🙋‍♀️`;
 }
 
-const NOT_FOUND_REPLY =
-  "Não encontrei essa peça no nosso estoque 😕.\nSe quiser, posso tentar localizar outro modelo ou você pode falar com um atendente.";
+function notFoundReply(showStock: boolean) {
+  return `Não encontrei essa peça${showStock ? " no nosso estoque" : ""} 😕.\nSe quiser, posso tentar localizar outro modelo ou você pode falar com um atendente.`;
+}
 
 const HUMAN_HANDOFF_REPLY =
   "Combinado! Vou te transferir para um atendente humano, só um instante 🙋‍♀️";
@@ -208,12 +213,14 @@ async function isOrderStillPending(storeId: string, orderId: string): Promise<bo
   return order?.status === "PENDING";
 }
 
-async function addLastProductToCart(storeId: string, context: ConversationContext): Promise<ResolvedReply> {
+async function addLastProductToCart(storeId: string, context: ConversationContext, showStock: boolean): Promise<ResolvedReply> {
   const lastProduct = context.lastProduct!;
   const fresh = await getProduct(storeId, lastProduct.id);
   if (!fresh || fresh.stockQuantity <= 0) {
     return {
-      reply: "Poxa, essa peça acabou de ficar sem estoque 😕 Quer ver outra opção?",
+      reply: showStock
+        ? "Poxa, essa peça acabou de ficar sem estoque 😕 Quer ver outra opção?"
+        : "Poxa, essa peça não está mais disponível 😕 Quer ver outra opção?",
       context: { ...context, lastProduct: undefined },
     };
   }
@@ -265,7 +272,7 @@ async function resolveReply(
   }
 
   if (parsed.intent === "add_to_cart") {
-    if (context.lastProduct) return addLastProductToCart(storeId, context);
+    if (context.lastProduct) return addLastProductToCart(storeId, context, store.showStockQuantity);
     return { reply: NOTHING_TO_ADD_REPLY, context };
   }
 
@@ -296,13 +303,16 @@ async function resolveReply(
     );
 
     if (errors.length > 0 || !order) {
+      if (!store.showStockQuantity) {
+        // Sem falar de estoque: um atendente confirma os itens com o cliente.
+        const lines = ["Preciso confirmar alguns itens do seu pedido com a loja:"];
+        for (const error of errors) lines.push(`• ${error.productName}`);
+        lines.push("Quer falar com um atendente?");
+        return { reply: lines.join("\n"), context, buttons: [HUMAN_BUTTON] };
+      }
       const lines = ["Ops, o estoque de alguns itens mudou enquanto você decidia:"];
       for (const error of errors) {
-        lines.push(
-          store.showStockQuantity
-            ? `${error.productName}: pedimos ${error.requestedQuantity}, mas agora só tem ${error.availableQuantity} disponível.`
-            : `${error.productName}: não temos mais a quantidade pedida.`
-        );
+        lines.push(`${error.productName}: pedimos ${error.requestedQuantity}, mas agora só tem ${error.availableQuantity} disponível.`);
       }
       lines.push("Quer ajustar e tentar de novo?");
       return { reply: lines.join("\n"), context };
@@ -322,7 +332,7 @@ async function resolveReply(
 
   if (parsed.intent === "affirmative") {
     // "sim" depois de uma peça oferecida continua funcionando como "adicionar ao carrinho".
-    if (context.lastProduct) return addLastProductToCart(storeId, context);
+    if (context.lastProduct) return addLastProductToCart(storeId, context, store.showStockQuantity);
 
     if (context.pendingOrderId) {
       if (await isOrderStillPending(storeId, context.pendingOrderId)) {
@@ -341,11 +351,11 @@ async function resolveReply(
     const result = searchText ? await searchProduct(storeId, searchText) : ({ kind: "not_found" } as const);
 
     if (result.kind === "not_found") {
-      return { reply: NOT_FOUND_REPLY, context: { ...context, lastProduct: undefined }, buttons: [HUMAN_BUTTON] };
+      return { reply: notFoundReply(store.showStockQuantity), context: { ...context, lastProduct: undefined }, buttons: [HUMAN_BUTTON] };
     }
 
     if (result.kind === "ambiguous") {
-      return { reply: buildAmbiguousReply(result.options), context: { ...context, lastProduct: undefined } };
+      return { reply: buildAmbiguousReply(result.options, store.showStockQuantity), context: { ...context, lastProduct: undefined } };
     }
 
     const product = result.product;
