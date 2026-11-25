@@ -33,6 +33,16 @@ type BuiltRow = {
 
 const FIELD_OPTIONS: (ProductFieldKey | "ignore")[] = ["ignore", ...(Object.keys(FIELD_LABELS) as ProductFieldKey[])];
 
+function nonNegative(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const value = parseIntBR(raw);
+  return value === null ? undefined : Math.max(0, value);
+}
+
+// O servidor processa linha a linha; lotes pequenos evitam o limite de tempo da
+// requisição na Vercel e o limite de linhas por envio da API.
+const IMPORT_BATCH_SIZE = 100;
+
 function buildRow(raw: Record<string, string>, mapping: ColumnMapping): BuiltRow {
   const values: Partial<Record<ProductFieldKey, string>> = {};
   for (const [header, field] of Object.entries(mapping)) {
@@ -55,8 +65,9 @@ function buildRow(raw: Record<string, string>, mapping: ColumnMapping): BuiltRow
     model: values.model?.trim() || undefined,
     compatibility: values.compatibility?.trim() || undefined,
     description: values.description?.trim() || undefined,
-    stockQuantity: values.stockQuantity ? (parseIntBR(values.stockQuantity) ?? undefined) : undefined,
-    minStock: values.minStock ? (parseIntBR(values.minStock) ?? undefined) : undefined,
+    // Sistemas de loja exportam estoque negativo ("-1"); o servidor só aceita >= 0.
+    stockQuantity: nonNegative(values.stockQuantity),
+    minStock: nonNegative(values.minStock),
     sku: values.sku?.trim() || undefined,
     imageUrl: /^https?:\/\//i.test(values.imageUrl?.trim() ?? "") ? values.imageUrl!.trim() : undefined,
     issues,
@@ -77,6 +88,7 @@ export default function ImportProductsPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<ImportSummary | null>(null);
   const [skippedCount, setSkippedCount] = useState(0);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
   async function handleFile(file: File) {
     setParsing(true);
@@ -111,37 +123,54 @@ export default function ImportProductsPage() {
   async function handleImport() {
     setSubmitting(true);
     setSubmitError(null);
-    try {
-      const payload = validRows.map((row) => ({
-        name: row.name,
-        price: row.price as number,
-        categoryName: row.categoryName,
-        brand: row.brand,
-        model: row.model,
-        compatibility: row.compatibility,
-        description: row.description,
-        stockQuantity: row.stockQuantity,
-        minStock: row.minStock,
-        sku: row.sku,
-        imageUrl: row.imageUrl,
-      }));
+    const payload = validRows.map((row) => ({
+      name: row.name,
+      price: row.price as number,
+      categoryName: row.categoryName,
+      brand: row.brand,
+      model: row.model,
+      compatibility: row.compatibility,
+      description: row.description,
+      stockQuantity: row.stockQuantity,
+      minStock: row.minStock,
+      sku: row.sku,
+      imageUrl: row.imageUrl,
+    }));
 
-      const res = await fetch("/api/admin/products/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: payload }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setSubmitError(json.error ?? "Erro ao importar");
-        return;
+    const combined: ImportSummary = { results: [], summary: { created: 0, updated: 0, errors: 0 } };
+    setProgress({ done: 0, total: payload.length });
+    try {
+      for (let start = 0; start < payload.length; start += IMPORT_BATCH_SIZE) {
+        const batch = payload.slice(start, start + IMPORT_BATCH_SIZE);
+        const res = await fetch("/api/admin/products/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows: batch }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const imported = combined.summary.created + combined.summary.updated;
+          setSubmitError(
+            `${json.error ?? "Erro ao importar"} (parou na linha ${start + 1} de ${payload.length}` +
+              (imported > 0 ? `; ${imported} produtos já foram salvos — pode importar de novo que eles só são atualizados` : "") +
+              ")"
+          );
+          return;
+        }
+        const data = json.data as ImportSummary;
+        combined.results.push(...data.results.map((r) => ({ ...r, index: r.index + start })));
+        combined.summary.created += data.summary.created;
+        combined.summary.updated += data.summary.updated;
+        combined.summary.errors += data.summary.errors;
+        setProgress({ done: Math.min(start + batch.length, payload.length), total: payload.length });
       }
       setSkippedCount(builtRows.length - validRows.length);
-      setImportResult(json.data);
+      setImportResult(combined);
     } catch {
-      setSubmitError("Erro de conexão ao importar");
+      setSubmitError("Erro de conexão ao importar. Pode importar de novo: o que já foi salvo só é atualizado.");
     } finally {
       setSubmitting(false);
+      setProgress(null);
     }
   }
 
@@ -298,7 +327,11 @@ export default function ImportProductsPage() {
               onClick={handleImport}
               disabled={submitting || validRows.length === 0 || !hasNameMapped || !hasPriceMapped}
             >
-              {submitting ? "Importando..." : `Importar ${validRows.length} produtos`}
+              {submitting
+                ? progress
+                  ? `Importando ${progress.done} de ${progress.total}...`
+                  : "Importando..."
+                : `Importar ${validRows.length} produtos`}
             </Button>
           </div>
         </div>
