@@ -12,6 +12,7 @@ import {
   parseSpreadsheetFile,
   type ParsedSpreadsheet,
   type ProductFieldKey,
+  UnsupportedSpreadsheetError,
 } from "@/lib/spreadsheet";
 
 type ColumnMapping = Record<string, ProductFieldKey | "ignore">;
@@ -58,7 +59,7 @@ function buildRow(raw: Record<string, string>, mapping: ColumnMapping): BuiltRow
     stockQuantity: values.stockQuantity ? (parseIntBR(values.stockQuantity) ?? undefined) : undefined,
     minStock: values.minStock ? (parseIntBR(values.minStock) ?? undefined) : undefined,
     sku: values.sku?.trim() || undefined,
-    imageUrl: values.imageUrl?.trim() || undefined,
+    imageUrl: /^https?:\/\//i.test(values.imageUrl?.trim() ?? "") ? values.imageUrl!.trim() : undefined,
     issues,
   };
 }
@@ -91,8 +92,12 @@ export default function ImportProductsPage() {
       }
       setParsed(result);
       setMapping(guessColumnMapping(result.headers));
-    } catch {
-      setParseError("Não consegui ler esse arquivo. Confira se é um .xlsx ou .csv válido.");
+    } catch (error) {
+      setParseError(
+        error instanceof UnsupportedSpreadsheetError
+          ? "Arquivos .xls (Excel antigo) ainda não são aceitos. Abra no Excel e use \"Salvar como\" → \"Pasta de Trabalho do Excel (.xlsx)\"."
+          : "Não consegui ler esse arquivo. Confira se é um .xlsx ou .csv válido."
+      );
       setParsed(null);
     } finally {
       setParsing(false);
