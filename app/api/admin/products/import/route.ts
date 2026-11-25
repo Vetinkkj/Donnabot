@@ -3,6 +3,9 @@ import { z } from "zod";
 import { getAdminStoreId } from "@/lib/current-store";
 import { importProducts } from "@/services/stock";
 
+// Cada lote (até 100 linhas vindas da tela de importação) faz várias consultas por linha.
+export const maxDuration = 60;
+
 const rowSchema = z.object({
   name: z.string().trim().min(1),
   categoryName: z.string().trim().optional(),
