@@ -12,7 +12,6 @@ import {
   parseSpreadsheetFile,
   type ParsedSpreadsheet,
   type ProductFieldKey,
-  UnsupportedSpreadsheetError,
 } from "@/lib/spreadsheet";
 
 type ColumnMapping = Record<string, ProductFieldKey | "ignore">;
@@ -92,12 +91,8 @@ export default function ImportProductsPage() {
       }
       setParsed(result);
       setMapping(guessColumnMapping(result.headers));
-    } catch (error) {
-      setParseError(
-        error instanceof UnsupportedSpreadsheetError
-          ? "Arquivos .xls (Excel antigo) ainda não são aceitos. Abra no Excel e use \"Salvar como\" → \"Pasta de Trabalho do Excel (.xlsx)\"."
-          : "Não consegui ler esse arquivo. Confira se é um .xlsx ou .csv válido."
-      );
+    } catch {
+      setParseError("Não consegui ler esse arquivo. Confira se é uma planilha .xlsx, .xls ou .csv válida.");
       setParsed(null);
     } finally {
       setParsing(false);
@@ -165,7 +160,7 @@ export default function ImportProductsPage() {
         </Link>
         <h1 className="mt-1 text-xl font-semibold text-zinc-900 dark:text-zinc-50">Importar planilha</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Envie a planilha (.xlsx ou .csv) que a loja já usa. Produtos com o mesmo nome de um já cadastrado são
+          Envie a planilha (.xlsx, .xls ou .csv) que a loja já usa. Produtos com o mesmo nome de um já cadastrado são
           atualizados (preço/estoque); os demais são criados com um código gerado automaticamente.
         </p>
       </div>

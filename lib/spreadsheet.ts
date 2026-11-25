@@ -154,16 +154,56 @@ function cellValueToString(value: ExcelJS.CellValue): string {
   return String(value);
 }
 
-export class UnsupportedSpreadsheetError extends Error {}
+/**
+ * Lê .xls antigo (Excel 97-2003) e também os ".xls" que muitos sistemas de loja
+ * exportam e que na verdade são HTML/texto. O ExcelJS só entende .xlsx; o SheetJS
+ * é carregado só quando precisa, para não pesar na página.
+ */
+async function parseWithSheetJs(file: File): Promise<ParsedSpreadsheet> {
+  const XLSX = await import("xlsx");
+  const cptable = await import("xlsx/dist/cpexcel.full.mjs");
+  XLSX.set_cptable(cptable);
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  // .xls de verdade começa com a assinatura OLE (D0 CF 11 E0) e .xlsx com a do ZIP ("PK").
+  // O resto é HTML/texto: decodifica antes (UTF-8 ou Windows-1252), senão os acentos quebram.
+  const isBinary =
+    (bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0) ||
+    (bytes[0] === 0x50 && bytes[1] === 0x4b);
+  const workbook = isBinary
+    ? XLSX.read(bytes, { type: "array", codepage: 1252 })
+    : XLSX.read(decodeText(bytes.buffer), { type: "string", raw: true });
+  const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+  if (!worksheet) return { headers: [], rows: [] };
+
+  const table = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, raw: true, defval: "" });
+  const [headerRow = [], ...dataRows] = table;
+  const headers = headerRow.map((value) => String(value ?? "").trim());
+
+  const rows: Record<string, string>[] = [];
+  for (const dataRow of dataRows) {
+    const record: Record<string, string> = {};
+    headers.forEach((header, index) => {
+      if (!header) return;
+      const value = dataRow[index];
+      record[header] = value === null || value === undefined ? "" : String(value);
+    });
+    if (Object.values(record).some((value) => value.trim() !== "")) rows.push(record);
+  }
+
+  return { headers: headers.filter(Boolean), rows };
+}
 
 export async function parseSpreadsheetFile(file: File): Promise<ParsedSpreadsheet> {
   const name = file.name.toLowerCase();
   if (name.endsWith(".csv") || name.endsWith(".txt")) return parseCsv(file);
-  if (name.endsWith(".xls")) {
-    // .xls antigo (Excel 97-2003) não é lido pelo ExcelJS.
-    throw new UnsupportedSpreadsheetError("xls");
+  if (name.endsWith(".xls")) return parseWithSheetJs(file);
+  try {
+    return await parseExcel(file);
+  } catch {
+    // Arquivo com extensão .xlsx mas em outro formato: tenta o leitor mais tolerante.
+    return parseWithSheetJs(file);
   }
-  return parseExcel(file);
 }
 
 /** Converte texto de preço em formato brasileiro ("R$ 1.050,00") para número. */
